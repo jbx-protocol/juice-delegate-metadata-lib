@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-library JBXDelegateMetadata {
+library JBXDelegateMetadataLib {
 
     // Parse - onchain, so in Yul, maybe will convert to etkAsm later
     function getMetadata(bytes4 _id, bytes calldata _metadata) internal pure returns(bytes memory _targetMetadata) {
