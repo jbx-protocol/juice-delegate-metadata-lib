@@ -18,10 +18,17 @@ contract JBXDelegateMetadataLib_Test is Test {
         bytes memory _metadata = abi.encodePacked(
             bytes32(uint256(type(uint256).max)),    // First 32B reserved
             
-            bytes4(0x11111111),       // First delegate id == 2
-            bytes1(0x22),       // First delegate offset == the end of this delegate id's array = 10
+            bytes4(0x11111111), // First delegate id == 2
+            bytes1(uint8(110)),       // First delegate offset:
+            // 4B function selector
+            // 32B _id arg
+            // 32B pointer to the bytes
+            // 32B bytes length
+            // Then start the actual metadata -> offset are shifted by 100 -> first is 110
+
             _id,                     // Second delegate id == _id
-            bytes1(0x44),       // Second delegate offset == 10 + first delegate metadata length == 42
+            bytes1(uint8(110+32)),       // Second delegate offset (first offset + length of first metadata)
+
             bytes32(0),   // First delegate metadata
             bytes32(uint256(type(uint256).max))   // Second delegate metadata
         );
@@ -38,11 +45,14 @@ contract JBXDelegateMetadataLib_Test is Test {
  * @dev Harness to deploy and test JBXDelegateMetadataLib
  */
 contract ForTest_JBXDelegateMetadataLib {
-    function getMetadata(bytes4 _id, bytes calldata _metadata) external pure returns(bytes32 _targetMetadata) {
+    function getMetadata(bytes4 _delegateId, bytes calldata _metadata) external pure returns(bytes32 _targetMetadata) {
         // Either no metadata or empty one with only one selector (32+4+1)
         if(_metadata.length < 37) revert(); //return bytes1(0);
 
         assembly {
+            // Store the first arg, the target id
+            let _id := and(shr(224, calldataload(4)), 0xFFFFFFFF)
+
             // Current calldata byte pointer
             let _current := add(4, 128) // function  selector 4B + _id one word + bytes pointer (0x40) 1 word + bytes length 1 word + reserved for protocol 1 word
 
@@ -62,34 +72,31 @@ contract ForTest_JBXDelegateMetadataLib {
                     // If it's the last one, copy until the end
                     switch eq(add(_current, 5), _end)
                     case true {
-                        // Start at the free mem pointer
-                        _targetMetadata := mload(0x40)
-
                         let _dataSize := sub(calldatasize(), _currentOffset)
 
                         mstore(0x0, _dataSize)
+
+                       _targetMetadata := calldataload(_currentOffset)
 
                         calldatacopy(0x20, _currentOffset, _dataSize)
 
                         return(0x0, add(_dataSize, 32))
                     }
-                    // Otherwise, copy until the next offset
-                    default {
-                        let _nextOffset := and(shr(32, calldataload(add(_current, 5))), 0xFF)
-                        _targetMetadata := mload(0x40)
-                        mstore(0x40, add(_targetMetadata, sub(_nextOffset, add(_currentOffset, 1))))
-                        calldatacopy(_targetMetadata, add(_currentOffset, 1), sub(_nextOffset, add(_currentOffset, 1)))
+            //         // Otherwise, copy until the next offset
+            //         default {
+            //             let _nextOffset := and(shr(32, calldataload(add(_current, 5))), 0xFF)
+            //             _targetMetadata := mload(0x40)
+            //             mstore(0x40, add(_targetMetadata, sub(_nextOffset, add(_currentOffset, 1))))
+            //             calldatacopy(_targetMetadata, add(_currentOffset, 1), sub(_nextOffset, add(_currentOffset, 1)))
 
-                    }
+            //         }
                 }                
             }
 
-            // If we didn't find the ID, return an empty array
-            if eq(_targetMetadata, 0) {
-                _targetMetadata := mload(0x40)
-                mstore(0x40, add(_targetMetadata, 32))
-                mstore(_targetMetadata, 0)
-            }
+            // // If we didn't find the ID, return an empty array
+            // if eq(_targetMetadata, 0) {
+            //     _targetMetadata := 0
+            // }
         }
         
 
