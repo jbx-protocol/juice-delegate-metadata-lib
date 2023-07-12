@@ -54,10 +54,10 @@ contract ForTest_JBXDelegateMetadataLib {
             let _id := and(shr(224, calldataload(4)), 0xFFFFFFFF)
 
             // Current calldata byte pointer
-            let _current := add(4, 128) // function  selector 4B + _id one word + bytes pointer (0x40) 1 word + bytes length 1 word + reserved for protocol 1 word
+            let _current := 132 // function  selector 4B + _id one word + bytes pointer (0x40) 1 word + bytes length 1 word + reserved for protocol 1 word
 
             // End of the id/offset: take the first offset
-            let _end := shr(248, calldataload(add(_current, 4)))
+            let _end := add(132, shr(248, calldataload(add(_current, 4))))
 
             // Iterate over every ID:
             for {  } lt(_current, _end) { _current := add(_current, 5) }
@@ -69,6 +69,7 @@ contract ForTest_JBXDelegateMetadataLib {
 
                 // If we found the ID, copy the metadata
                 if eq(_currentId, _id) {
+                    _targetMetadata := _id
                     // If it's the last one, copy until the end
                     switch eq(add(_current, 5), _end)
                     case true {
@@ -76,20 +77,17 @@ contract ForTest_JBXDelegateMetadataLib {
 
                         mstore(0x0, _dataSize)
 
-                       _targetMetadata := calldataload(_currentOffset)
-
                         calldatacopy(0x20, _currentOffset, _dataSize)
 
                         return(0x0, add(_dataSize, 32))
                     }
-            //         // Otherwise, copy until the next offset
-            //         default {
-            //             let _nextOffset := and(shr(32, calldataload(add(_current, 5))), 0xFF)
-            //             _targetMetadata := mload(0x40)
-            //             mstore(0x40, add(_targetMetadata, sub(_nextOffset, add(_currentOffset, 1))))
-            //             calldatacopy(_targetMetadata, add(_currentOffset, 1), sub(_nextOffset, add(_currentOffset, 1)))
-
-            //         }
+                    // Otherwise, copy until the next offset
+                    default {
+                        let _nextOffset := and(shr(32, calldataload(add(_current, 5))), 0xFF)
+                        _targetMetadata := mload(0x40)
+                        mstore(0x40, add(_targetMetadata, sub(_nextOffset, add(_currentOffset, 1))))
+                        calldatacopy(_targetMetadata, add(_currentOffset, 1), sub(_nextOffset, add(_currentOffset, 1)))
+                    }
                 }                
             }
 
