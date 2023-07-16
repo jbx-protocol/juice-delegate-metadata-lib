@@ -41,6 +41,11 @@ contract JBXDelegateMetadataLib_Test is Test {
         bytes4[] memory _ids = new bytes4[](3);
         bytes[] memory _metadatas = new bytes[](3);
 
+        for(uint256 _i; _i < _ids.length; _i++) {
+            _ids[_i] = bytes4(uint32(_i));
+            _metadatas[_i] = 'deadbeef';
+        }
+
         bytes memory _out = parser.createMetadata(_ids, _metadatas);
         emit log_bytes(_out);
     }
@@ -54,8 +59,32 @@ contract ForTest_JBXDelegateMetadataLib {
         return JBXDelegateMetadataLib.getMetadata(_delegateId, _metadata);
     }
 
-    function createMetadata(bytes4[] calldata _ids, bytes[] calldata _metadatas) external pure returns(bytes memory _metadata) {
-        return JBXDelegateMetadataLib.createMetadata(_ids, _metadatas);
-    }
+event Test(uint);
+    function createMetadata(bytes4[] calldata _ids, bytes[] calldata _metadatas) external returns(bytes memory _metadata) {
+        uint256 _numberOfIds = _ids.length;
+        uint256 _nextOffsetCounter;
+
+        _metadata = abi.encodePacked(bytes32(0)); // First word reserved for protocol
+        _nextOffsetCounter++;
+
+        // Create enough space for the ids and offsets
+        uint256 _numberOfBytesForIds = 5 * _ids.length;
+        // 0-pad the ids/offset
+        _numberOfBytesForIds = _numberOfIds % 32 == 0 ? _numberOfIds : _numberOfIds += 32 - _numberOfIds % 32;
+
+        assert(_numberOfBytesForIds % 32 == 0);
+
+        _nextOffsetCounter += _numberOfBytesForIds / 32;
+
+        for(uint256 _i; _i < _ids.length - 1; _i++) {
+            emit Test(_i);
+            _metadata = abi.encodePacked(_metadata, _ids[_i], _nextOffsetCounter);
+            _nextOffsetCounter += _metadatas[_i].length / 32;
+        }
+
+        for(uint256 _i; _i < _ids.length - 1; _i++) {
+            _metadata = abi.encodePacked(_metadata, _metadatas[_i]);
+        }
+    }  
 
 }

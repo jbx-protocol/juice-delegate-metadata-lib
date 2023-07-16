@@ -54,12 +54,12 @@ library JBXDelegateMetadataLib {
 
         _nextOffsetCounter += _numberOfBytesForIds / 32;
 
-        for(uint256 _i; _i < _numberOfIds; _i++) {
+        for(uint256 _i; _i < _ids.length - 1; _i++) {
             _metadata = abi.encodePacked(_metadata, _ids[_i], _nextOffsetCounter);
             _nextOffsetCounter += _metadatas[_i].length / 32;
         }
 
-        for(uint256 _i; _i < _numberOfIds; _i++) {
+        for(uint256 _i; _i < _ids.length - 1; _i++) {
             _metadata = abi.encodePacked(_metadata, _metadatas[_i]);
         }
     }
