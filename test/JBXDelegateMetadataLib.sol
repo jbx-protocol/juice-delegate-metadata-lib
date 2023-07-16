@@ -37,6 +37,13 @@ contract JBXDelegateMetadataLib_Test is Test {
         emit log_bytes(_out);
     }
 
+    function test_create() external {
+        bytes4[] memory _ids = new bytes4[](3);
+        bytes[] memory _metadatas = new bytes[](3);
+
+        bytes memory _out = parser.createMetadata(_ids, _metadatas);
+        emit log_bytes(_out);
+    }
 }
 
 /**
