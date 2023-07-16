@@ -3,75 +3,42 @@ pragma solidity ^0.8.20;
 
 library JBXDelegateMetadataLib {
 
-    // Parse - onchain, so in Yul, maybe will convert to etkAsm later
+    /** 
+        -- offset 0 --
+        bytes32 reserved for protocol
+
+        -- offset 1 --
+        bytes4 id
+        bytes1 offset (in number of 32B words, counting from
+        (...)
+        last part == 0 padded
+        
+        -- offset 2 --
+        bytes xxx - metadata
+     */
+
     function getMetadata(bytes4 _id, bytes calldata _metadata) internal pure returns(bytes memory _targetMetadata) {
         // Either no metadata or empty one with only one selector (32+4+1)
-        if(_metadata.length < 37) return new bytes(0);
+        if(_metadata.length < 37) return;
 
-        assembly {
-            // Current calldata byte pointer
-            let _current := 32
+        // Parse the id's -> stop when next offset == 0 or current = first offset
+        uint8 _firstOffset = uint8(_metadata[32+4]);
 
-            // End of the id/offset: take the first offset
-            let _end := and(calldataload(add(_current, 5)), 0xFF)
+        for(uint256 _i = 32; _metadata[_i] != bytes1(0) && uint8(_metadata[_i]) != _firstOffset * 32; _i += 5) {
+            // id found?
+            if(bytes4(_metadata[_i:_i+4]) == _delegateId) {
+                // End of the calldata (either start of data's or next offset is 0)
+                if(_i + 5 == _firstOffset || _metadata[_i + 9] == 0)
+                    return _metadata[uint8(_metadata[_i + 4]) * 32 : _metadata.length];
 
-            // // Iterate over every ID:
-            // for {  } lt(_current, _end) { _current := add(_current, 5) }
-            // {   
-            //     // Load the current word and extract the ID and the offset
-            //     let _currentWord := calldataload(_current)
-            //     let _currentId := and(_currentWord, 0xFFFFFFFF)
-            //     let _currentOffset := and(shr(32, _currentWord), 0xFF)
-
-            //     // If we found the ID, copy the metadata
-            //     if eq(_currentId, _id) {
-            //         // If it's the last one, copy until the end
-            //         switch eq(add(_current, 5), _end)
-            //         case true {
-            //             // Start at the free mem pointer
-            //             _targetMetadata := mload(0x40)
-
-            //             let _dataSize := sub(calldatasize(), _currentOffset)
-
-            //             mstore(0x0, _dataSize)
-
-            //             calldatacopy(0x20, _currentOffset, _dataSize)
-
-            //             return(0x0, add(_dataSize, 32))
-            //         }
-            //         // Otherwise, copy until the next offset
-            //         default {
-            //             let _nextOffset := and(shr(32, calldataload(add(_current, 5))), 0xFF)
-            //             _targetMetadata := mload(0x40)
-            //             mstore(0x40, add(_targetMetadata, sub(_nextOffset, add(_currentOffset, 1))))
-            //             calldatacopy(_targetMetadata, add(_currentOffset, 1), sub(_nextOffset, add(_currentOffset, 1)))
-
-            //         }
-            //     }                
-            // }
-
-            // // If we didn't find the ID, return an empty array
-            // if eq(_targetMetadata, 0) {
-            //     _targetMetadata := mload(0x40)
-            //     mstore(0x40, add(_targetMetadata, 32))
-            //     mstore(_targetMetadata, 0)
-            // }
+                // If not, only return until next offset
+                return _metadata[uint8(_metadata[_i + 4]) * 32 : uint8(_metadata[_i + 9]) * 32];
+            }
         }
-        
-
     }
-
+        
     // Pack dem data (offchain helper)
     function createMetadata(bytes4[] calldata _ids, bytes[] calldata _metadatas) internal pure returns(bytes memory _metadata) {
 
     }
 }
-
-/**
-4 bytes
-+ 1 bytes for start offset
-
-with _metadata CALLDATA so we can slice it:)
-
-
- */
