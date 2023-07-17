@@ -42,8 +42,8 @@ contract JBXDelegateMetadataLib_Test is Test {
         bytes[] memory _metadatas = new bytes[](3);
 
         for(uint256 _i; _i < _ids.length; _i++) {
-            _ids[_i] = bytes4(uint32(_i));
-            _metadatas[_i] = 'deadbeef';
+            _ids[_i] = bytes4(uint32(_i+1 * 1000));
+            _metadatas[_i] = abi.encodePacked(bytes1(uint8(_i+1)), hex'deadbeef', bytes2(uint16(_i+69)));
         }
 
         bytes memory _out = parser.createMetadata(_ids, _metadatas);
@@ -59,32 +59,34 @@ contract ForTest_JBXDelegateMetadataLib {
         return JBXDelegateMetadataLib.getMetadata(_delegateId, _metadata);
     }
 
-event Test(uint);
+event Test(bytes);
     function createMetadata(bytes4[] calldata _ids, bytes[] calldata _metadatas) external returns(bytes memory _metadata) {
         uint256 _numberOfIds = _ids.length;
-        uint256 _nextOffsetCounter;
+        uint8 _nextOffsetCounter;
 
         _metadata = abi.encodePacked(bytes32(0)); // First word reserved for protocol
         _nextOffsetCounter++;
 
-        // Create enough space for the ids and offsets
+        // Create enough space for the ids/offsets tuples
         uint256 _numberOfBytesForIds = 5 * _ids.length;
-        // 0-pad the ids/offset
+
+        // 0-pad the remaining word
         _numberOfBytesForIds = _numberOfIds % 32 == 0 ? _numberOfIds : _numberOfIds += 32 - _numberOfIds % 32;
 
         assert(_numberOfBytesForIds % 32 == 0);
 
-        _nextOffsetCounter += _numberOfBytesForIds / 32;
+        // Next offset is now right after the last id/offset tuple - this shouldn't be > 256 words
+        _nextOffsetCounter += uint8(_numberOfBytesForIds / 32);
 
+        // Fill the id/offset tuples, starting at the offset computed just before
         for(uint256 _i; _i < _ids.length - 1; _i++) {
-            emit Test(_i);
             _metadata = abi.encodePacked(_metadata, _ids[_i], _nextOffsetCounter);
-            _nextOffsetCounter += _metadatas[_i].length / 32;
+            emit Test(_metadata);
+            _nextOffsetCounter += uint8(_metadatas[_i].length / 32);
         }
 
         for(uint256 _i; _i < _ids.length - 1; _i++) {
             _metadata = abi.encodePacked(_metadata, _metadatas[_i]);
         }
-    }  
-
+    } 
 }

@@ -47,6 +47,7 @@ library JBXDelegateMetadataLib {
 
         // Create enough space for the ids and offsets
         uint256 _numberOfBytesForIds = 5 * _ids.length;
+        
         // 0-pad the ids/offset
         _numberOfBytesForIds = _numberOfIds % 32 == 0 ? _numberOfIds : _numberOfIds += 32 - _numberOfIds % 32;
 
