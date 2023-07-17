@@ -39,29 +39,52 @@ library JBXDelegateMetadataLib {
         
     // Pack dem data (offchain helper)
     function createMetadata(bytes4[] calldata _ids, bytes[] calldata _metadatas) internal pure returns(bytes memory _metadata) {
-        uint256 _numberOfIds = _ids.length;
-        uint256 _nextOffsetCounter;
+        // uint256 _numberOfIds = _ids.length;
+        // uint256 _nextOffsetCounter;
 
-        _metadata = abi.encodePacked(bytes32(0)); // First word reserved for protocol
-        _nextOffsetCounter++;
+        // _metadata = abi.encodePacked(bytes32(0)); // First word reserved for protocol
+        // _nextOffsetCounter++;
 
-        // Create enough space for the ids and offsets
-        uint256 _numberOfBytesForIds = 5 * _ids.length;
+        // // Create enough space for the ids and offsets
+        // uint256 _numberOfBytesForIds = 5 * _ids.length;
+
+        // // 0-pad the ids/offset
+        // _numberOfBytesForIds = _numberOfIds % 32 == 0 ? _numberOfIds : _numberOfIds += 32 - _numberOfIds % 32;
+
+        // assert(_numberOfBytesForIds % 32 == 0);
+
+        // _nextOffsetCounter += _numberOfBytesForIds / 32;
+
+        // // Add the tuples
+        // for(uint256 _i; _i < _ids.length - 1; _i++) {
+        //     _metadata = abi.encodePacked(_metadata, _ids[_i], _nextOffsetCounter);
+        //     _nextOffsetCounter += uint8(_metadatas[_i].length / 32) + 1;
+        // }
+
+        // // Add the padding
+        // if(_metadata.length != 32 + _numberOfBytesForIds) {
+        //     uint256 _paddingLength = _metadata.length - 32 + _numberOfBytesForIds;
+        //     uint256 _newLength = _metadata.length + _paddingLength;
+
+        //     assembly{
+        //         mstore(_metadata, _newLength)
+        //     }
+        // }
         
-        // 0-pad the ids/offset
-        _numberOfBytesForIds = _numberOfIds % 32 == 0 ? _numberOfIds : _numberOfIds += 32 - _numberOfIds % 32;
+        // // Append the metadatas, pad them to 32B
+        // for(uint256 _i; _i < _ids.length - 1; _i++) {
+        //     _metadata = abi.encodePacked(_metadata, _metadatas[_i]);
 
-        assert(_numberOfBytesForIds % 32 == 0);
+        //     if(_metadatas[_i].length % 32 != 0) {
+        //         uint256 _paddingLength = _metadatas[_i].length % 32;
+        //         uint256 _newLength = _metadata.length + _paddingLength;
 
-        _nextOffsetCounter += _numberOfBytesForIds / 32;
+        //         assembly{
+        //             mstore(_metadata, _newLength)
+        //         }
+        //     }
+        // }
 
-        for(uint256 _i; _i < _ids.length - 1; _i++) {
-            _metadata = abi.encodePacked(_metadata, _ids[_i], _nextOffsetCounter);
-            _nextOffsetCounter += _metadatas[_i].length / 32;
-        }
-
-        for(uint256 _i; _i < _ids.length - 1; _i++) {
-            _metadata = abi.encodePacked(_metadata, _metadatas[_i]);
-        }
+        
     }
 }
