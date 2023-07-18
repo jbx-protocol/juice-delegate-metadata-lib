@@ -7,14 +7,17 @@ library JBXDelegateMetadataLib {
         -- offset 0 --
         bytes32 reserved for protocol
 
-        -- offset 1 --
+        -- offset 1 (if id/offset fits in 1 word) --
         bytes4 id
         bytes1 offset (in number of 32B words, counting from
         (...)
-        last part == 0 padded
+        last part == 0 padded to fit in a multiple number of words
         
         -- offset 2 --
         bytes xxx - metadata
+
+        -- offset 3 --
+        etc
      */
 
     function getMetadata(bytes4 _id, bytes calldata _metadata) internal pure returns(bytes memory _targetMetadata) {
@@ -36,55 +39,9 @@ library JBXDelegateMetadataLib {
             }
         }
     }
-        
+
     // Pack dem data (offchain helper)
     function createMetadata(bytes4[] calldata _ids, bytes[] calldata _metadatas) internal pure returns(bytes memory _metadata) {
-        // uint256 _numberOfIds = _ids.length;
-        // uint256 _nextOffsetCounter;
 
-        // _metadata = abi.encodePacked(bytes32(0)); // First word reserved for protocol
-        // _nextOffsetCounter++;
-
-        // // Create enough space for the ids and offsets
-        // uint256 _numberOfBytesForIds = 5 * _ids.length;
-
-        // // 0-pad the ids/offset
-        // _numberOfBytesForIds = _numberOfIds % 32 == 0 ? _numberOfIds : _numberOfIds += 32 - _numberOfIds % 32;
-
-        // assert(_numberOfBytesForIds % 32 == 0);
-
-        // _nextOffsetCounter += _numberOfBytesForIds / 32;
-
-        // // Add the tuples
-        // for(uint256 _i; _i < _ids.length - 1; _i++) {
-        //     _metadata = abi.encodePacked(_metadata, _ids[_i], _nextOffsetCounter);
-        //     _nextOffsetCounter += uint8(_metadatas[_i].length / 32) + 1;
-        // }
-
-        // // Add the padding
-        // if(_metadata.length != 32 + _numberOfBytesForIds) {
-        //     uint256 _paddingLength = _metadata.length - 32 + _numberOfBytesForIds;
-        //     uint256 _newLength = _metadata.length + _paddingLength;
-
-        //     assembly{
-        //         mstore(_metadata, _newLength)
-        //     }
-        // }
-        
-        // // Append the metadatas, pad them to 32B
-        // for(uint256 _i; _i < _ids.length - 1; _i++) {
-        //     _metadata = abi.encodePacked(_metadata, _metadatas[_i]);
-
-        //     if(_metadatas[_i].length % 32 != 0) {
-        //         uint256 _paddingLength = _metadatas[_i].length % 32;
-        //         uint256 _newLength = _metadata.length + _paddingLength;
-
-        //         assembly{
-        //             mstore(_metadata, _newLength)
-        //         }
-        //     }
-        // }
-
-        
     }
 }
