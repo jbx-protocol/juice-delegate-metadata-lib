@@ -27,11 +27,11 @@ library JBXDelegateMetadataLib {
         // Parse the id's -> stop when next offset == 0 or current = first offset
         uint8 _firstOffset = uint8(_metadata[32+4]);
 
-        for(uint256 _i = 32; _metadata[_i] != bytes1(0) && uint8(_metadata[_i]) != _firstOffset * 32; _i += 5) {
+        for(uint256 _i = 32; _metadata[_i+4] != bytes1(0) && _i < _firstOffset * 32; _i += 5) {
             // id found?
             if(bytes4(_metadata[_i:_i+4]) == _id) {
                 // End of the calldata (either start of data's or next offset is 0)
-                if(_i + 5 == _firstOffset || _metadata[_i + 9] == 0)
+                if(_i + 5 == _firstOffset * 32 || _metadata[_i + 9] == 0)
                     return _metadata[uint8(_metadata[_i + 4]) * 32 : _metadata.length];
 
                 // If not, only return until next offset
