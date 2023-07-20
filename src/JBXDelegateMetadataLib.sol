@@ -10,16 +10,16 @@ pragma solidity ^0.8.20;
  *           The offset fits 1 bytes, the ID 4 bytes. This array is padded to 32B.
  *         - the metadata for each delegate, padded to 32B each
  *
- *            +-----------------------+ offset 0
+ *            +-----------------------+ offset: 0
  *            | 32B reserved          |
- *            +-----------------------+ offset 1 = end of first 32B
+ *            +-----------------------+ offset: 1 = end of first 32B
  *            | (delegate1 ID,offset1)|
  *            | (delegate2 ID,offset2)|
  *            | 0's padding           |
- *            +-----------------------+ offset 1 = 1 + number of words taken by the padded array
+ *            +-----------------------+ offset: offset1 = 1 + number of words taken by the padded array
  *            | delegate 1 metadata1  |
  *            | 0's padding           |
- *            +-----------------------+ offset 2 = offset1 + number of words taken by the metadata1
+ *            +-----------------------+ offset: offset2 = offset1 + number of words taken by the metadata1
  *            | delegate 2 metadata2  |
  *            | 0's padding           |
  *            +-----------------------+
