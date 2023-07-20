@@ -42,6 +42,35 @@ library JBXDelegateMetadataLib {
 
     // Pack dem data (offchain helper)
     function createMetadata(bytes4[] calldata _ids, bytes[] calldata _metadatas) internal pure returns(bytes memory _metadata) {
+        // add a first empty 32B
+        _metadata = abi.encodePacked(bytes32(0));
 
+        // first offset = 1 (the empty) + (ids length * 5 (4B for id, 1B for offset) / 32) + 1 (rounding up in 32B words)
+        uint256 _offset = 1 + _ids.length * 5 / 32 + 1;
+
+        // loop ids, for each:
+        //     add the id, then the offset
+        //     offset := offset + length of metadatas / 32 + 1 (rounding up in 32B words)
+        for(uint256 _i; _i < _ids.length; _i++) {
+            _metadata = abi.encodePacked(_metadata, _ids[_i], bytes1(uint8(_offset)));
+            _offset += _metadatas[_i].length / 32 + 1;
+        }
+        
+        // pad the table (new length = length / 32 + 1)
+        uint256 _paddedLength = (_metadata.length / 32 + 1) * 32;
+        assembly {
+            mstore(_metadata, _paddedLength)
+        }
+
+        // loop metadatas, for each:
+        //     add the metadata and pad to 32B (new length = length / 32 + 1)
+        for(uint256 _i; _i < _metadatas.length; _i++) {
+            _metadata = abi.encodePacked(_metadata, _metadatas[_i]);
+            _paddedLength = (_metadata.length / 32 + 1) * 32;
+            
+            assembly {
+                mstore(_metadata, _paddedLength)
+            }
+        }
     }
 }

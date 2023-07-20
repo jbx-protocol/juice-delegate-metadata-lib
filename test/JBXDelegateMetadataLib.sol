@@ -43,11 +43,12 @@ contract JBXDelegateMetadataLib_Test is Test {
 
         for(uint256 _i; _i < _ids.length; _i++) {
             _ids[_i] = bytes4(uint32(_i+1 * 1000));
-            _metadatas[_i] = abi.encodePacked(bytes1(uint8(_i+1)), hex'deadbeef', bytes2(uint16(_i+69)));
+            _metadatas[_i] = abi.encodePacked(bytes1(uint8(_i+1)), hex'deadbeef', bytes2(uint16(_i+69)), bytes32(uint256(type(uint256).max)));
         }
 
         bytes memory _out = parser.createMetadata(_ids, _metadatas);
-        emit log_bytes(_out);
+ 
+        parser.getMetadata(bytes4(uint32(1000)), _out);
     }
 }
 
@@ -59,53 +60,7 @@ contract ForTest_JBXDelegateMetadataLib {
         return JBXDelegateMetadataLib.getMetadata(_delegateId, _metadata);
     }
 
-event Test(uint);
-    function createMetadata(bytes4[] calldata _ids, bytes[] calldata _metadatas) external returns(bytes memory _metadata) {
-        uint256 _numberOfIds = _ids.length;
-        uint8 _nextOffsetCounter;
-
-        _metadata = abi.encodePacked(bytes32(0)); // First word reserved for protocol
-        _nextOffsetCounter++;
-
-        // Create enough space for the ids/offsets tuples
-        uint256 _numberOfBytesForIds = 5 * _ids.length;
-
-        // 0-pad the remaining word
-        _numberOfBytesForIds = _numberOfIds % 32 == 0 ? _numberOfIds : _numberOfIds += 32 - _numberOfIds % 32;
-
-        assert(_numberOfBytesForIds % 32 == 0);
-
-        // Next offset is now right after the last id/offset tuple - this shouldn't be > 256 words
-        _nextOffsetCounter += uint8(_numberOfBytesForIds / 32);
-
-        // Fill the id/offset tuples, starting at the offset computed just before
-        for(uint256 _i; _i < _ids.length; _i++) {
-            _metadata = abi.encodePacked(_metadata, _ids[_i], _nextOffsetCounter);
-            _nextOffsetCounter += uint8(_metadatas[_i].length / 32) + 1;
-        }
-
-        // Add the padding
-        if(_metadata.length != 32 + _numberOfBytesForIds) {
-            uint256 _paddingLength = _metadata.length - 32 + _numberOfBytesForIds;
-            uint256 _newLength = _metadata.length + _paddingLength;
-
-            assembly{
-                mstore(_metadata, _newLength)
-            }
-        }
-
-        // Append the metadatas, pad them to 32B
-        for(uint256 _i; _i < _ids.length; _i++) {
-            _metadata = abi.encodePacked(_metadata, _metadatas[_i]);
-            
-            if(_metadata.length % 32 != 0) {
-                uint256 _paddingLength = _metadata.length % 32;
-                uint256 _newLength = _metadata.length + _paddingLength;
-
-                assembly{
-                    mstore(_metadata, _newLength)
-                }
-            }
-        }
-    } 
+    function createMetadata(bytes4[] calldata _ids, bytes[] calldata _metadatas) external pure returns(bytes memory _metadata) {
+        return JBXDelegateMetadataLib.createMetadata(_ids, _metadatas);
+    }
 }
