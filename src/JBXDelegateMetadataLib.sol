@@ -25,8 +25,7 @@ pragma solidity ^0.8.20;
  *            +-----------------------+
  */
 library JBXDelegateMetadataLib {
-event Test(uint);
-event Test(bytes4);
+
     /**
      * @notice Parse the metadata to find the metadata for a specific delegate
      *
@@ -37,7 +36,7 @@ event Test(bytes4);
      *
      * @return _targetMetadata The metadata for the delegate
      */
-    function getMetadata(bytes4 _id, bytes calldata _metadata) internal returns(bytes memory _targetMetadata) {
+    function getMetadata(bytes4 _id, bytes calldata _metadata) internal pure returns(bytes memory _targetMetadata) {
         // Either no metadata or empty one with only one selector (32+4+1)
         if(_metadata.length < 37) return '';
 
