@@ -56,7 +56,7 @@ library JBXDelegateMetadataLib {
                     return _metadata[_currentOffset * 32 : _metadata.length];
 
                 // If not, only return until from this offset to the begining of the next offset
-                return _metadata[_currentOffset * 32 : uint256(uint8(_metadata[_i + 9]) - 1) * 32];
+                return _metadata[_currentOffset * 32 : uint256(uint8(_metadata[_i + 9])) * 32];
             }
         }
     }
