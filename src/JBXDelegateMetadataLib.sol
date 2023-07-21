@@ -25,7 +25,7 @@ pragma solidity ^0.8.20;
  *            +-----------------------+
  */
 library JBXDelegateMetadataLib {
-event Test(uint);
+
     /**
      * @notice Parse the metadata to find the metadata for a specific delegate
      *
@@ -36,20 +36,19 @@ event Test(uint);
      *
      * @return _targetMetadata The metadata for the delegate
      */
-    function getMetadata(bytes4 _id, bytes calldata _metadata) internal returns(bytes memory _targetMetadata) {
+    function getMetadata(bytes4 _id, bytes calldata _metadata) internal pure returns(bytes memory _targetMetadata) {
         // Either no metadata or empty one with only one selector (32+4+1)
         if(_metadata.length < 37) return '';
 
         // Get the first data offset - upcast to avoid overflow (same for other offset)
         uint256 _firstOffset = uint8(_metadata[32+4]);
-emit Test(_firstOffset);
+
         // Parse the id's to find _id, stop when next offset == 0 or current = first offset
         for(uint256 _i = 32; _metadata[_i+4] != bytes1(0) && _i < _firstOffset * 32; _i += 5) {
-emit Test(_i);
+
             // _id found?
             if(bytes4(_metadata[_i:_i+4]) == _id) {
-                emit Test(uint256(uint8(_metadata[_i + 4])) * 32);
-                emit Test(uint256(uint8(_metadata[_i + 9])) * 32);
+
                 // Are we at the end of the ids/offset array (either at the start of data's or next offset is 0/in the padding)
                 if(_i + 5 == _firstOffset * 32 || _metadata[_i + 9] == 0)
                     return _metadata[uint256(uint8(_metadata[_i + 4])) * 32 : _metadata.length];
