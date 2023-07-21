@@ -46,15 +46,17 @@ library JBXDelegateMetadataLib {
         // Parse the id's to find _id, stop when next offset == 0 or current = first offset
         for(uint256 _i = 32; _metadata[_i+4] != bytes1(0) && _i < _firstOffset * 32; _i += 5) {
 
+            uint256 _currentOffset = uint256(uint8(_metadata[_i + 4]));
+
             // _id found?
             if(bytes4(_metadata[_i:_i+4]) == _id) {
 
                 // Are we at the end of the ids/offset array (either at the start of data's or next offset is 0/in the padding)
                 if(_i + 5 == _firstOffset * 32 || _metadata[_i + 9] == 0)
-                    return _metadata[uint256(uint8(_metadata[_i + 4])) * 32 : _metadata.length];
+                    return _metadata[_currentOffset * 32 : _metadata.length];
 
-                // If not, only return until from this offset to the next offset
-                return _metadata[uint256(uint8(_metadata[_i + 4])) * 32 : uint256(uint8(_metadata[_i + 9]) - 1) * 32];
+                // If not, only return until from this offset to the begining of the next offset
+                return _metadata[_currentOffset * 32 : uint256(uint8(_metadata[_i + 9]) - 1) * 32];
             }
         }
     }
@@ -79,7 +81,7 @@ library JBXDelegateMetadataLib {
         // For each id, add it to the array with the next free offset, then increment the offset by the data length (rounded up)
         for(uint256 _i; _i < _ids.length; _i++) {
             _metadata = abi.encodePacked(_metadata, _ids[_i], bytes1(uint8(_offset)));
-            _offset += _metadatas[_i].length / 32 + 1;
+            _offset += _metadatas[_i].length / 32;
         }
         
         // Pad the array to a multiple of 32B
