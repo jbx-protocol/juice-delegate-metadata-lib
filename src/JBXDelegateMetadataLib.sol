@@ -59,7 +59,6 @@ library JBXDelegateMetadataLib {
                 return _metadata[_currentOffset * 32 : uint256(uint8(_metadata[_i + 9])) * 32];
             }
         }
-        emit Test(69696969);
     }
 
     /**
