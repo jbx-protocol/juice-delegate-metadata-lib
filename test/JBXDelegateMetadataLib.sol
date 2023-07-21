@@ -63,6 +63,7 @@ contract JBXDelegateMetadataLib_Test is Test {
     }
 
     function test_createAndParse_uint(uint256 _numberOfDelegates) external {
+
         // Maximum 220 delegates with 1 word data (offset overflow if more)
         _numberOfDelegates = bound(_numberOfDelegates, 1, 220);
 

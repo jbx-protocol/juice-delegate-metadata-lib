@@ -52,7 +52,7 @@ library JBXDelegateMetadataLib {
             if(bytes4(_metadata[_i:_i+4]) == _id) {
 
                 // Are we at the end of the ids/offset array (either at the start of data's or next offset is 0/in the padding)
-                if(_i + 6 >= _firstOffset * 32 || _metadata[_i + 9] == 0)
+                if(_i + 9 >= _firstOffset * 32 || _metadata[_i + 9] == 0)
                     return _metadata[_currentOffset * 32 : _metadata.length];
 
                 // If not, only return until from this offset to the begining of the next offset
