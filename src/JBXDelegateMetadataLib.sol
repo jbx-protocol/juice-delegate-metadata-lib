@@ -25,7 +25,7 @@ pragma solidity ^0.8.20;
  *            +-----------------------+
  */
 library JBXDelegateMetadataLib {
-
+event Test(uint);
     /**
      * @notice Parse the metadata to find the metadata for a specific delegate
      *
@@ -36,24 +36,26 @@ library JBXDelegateMetadataLib {
      *
      * @return _targetMetadata The metadata for the delegate
      */
-    function getMetadata(bytes4 _id, bytes calldata _metadata) internal pure returns(bytes memory _targetMetadata) {
+    function getMetadata(bytes4 _id, bytes calldata _metadata) internal returns(bytes memory _targetMetadata) {
         // Either no metadata or empty one with only one selector (32+4+1)
         if(_metadata.length < 37) return '';
 
         // Get the first data offset - upcast to avoid overflow (same for other offset)
         uint256 _firstOffset = uint8(_metadata[32+4]);
-
+emit Test(_firstOffset);
         // Parse the id's to find _id, stop when next offset == 0 or current = first offset
         for(uint256 _i = 32; _metadata[_i+4] != bytes1(0) && _i < _firstOffset * 32; _i += 5) {
-
+emit Test(_i);
             // _id found?
             if(bytes4(_metadata[_i:_i+4]) == _id) {
+                emit Test(uint256(uint8(_metadata[_i + 4])) * 32);
+                emit Test(uint256(uint8(_metadata[_i + 9])) * 32);
                 // Are we at the end of the ids/offset array (either at the start of data's or next offset is 0/in the padding)
                 if(_i + 5 == _firstOffset * 32 || _metadata[_i + 9] == 0)
                     return _metadata[uint256(uint8(_metadata[_i + 4])) * 32 : _metadata.length];
 
                 // If not, only return until from this offset to the next offset
-                return _metadata[uint256(uint8(_metadata[_i + 4])) * 32 : uint256(uint8(_metadata[_i + 9])) * 32];
+                return _metadata[uint256(uint8(_metadata[_i + 4])) * 32 : uint256(uint8(_metadata[_i + 9]) - 1) * 32];
             }
         }
     }
@@ -82,7 +84,7 @@ library JBXDelegateMetadataLib {
         }
         
         // Pad the array to a multiple of 32B
-        uint256 _paddedLength = (_metadata.length / 32 + 1) * 32;
+        uint256 _paddedLength = _metadata.length % 32 == 0 ?_metadata.length : (_metadata.length / 32 + 1) * 32;
         assembly {
             mstore(_metadata, _paddedLength)
         }
@@ -90,7 +92,7 @@ library JBXDelegateMetadataLib {
         // Add each metadata to the array, each padded to 32 bytes
         for(uint256 _i; _i < _metadatas.length; _i++) {
             _metadata = abi.encodePacked(_metadata, _metadatas[_i]);
-            _paddedLength = (_metadata.length / 32 + 1) * 32;
+            _paddedLength = _metadata.length % 32 == 0 ?_metadata.length : (_metadata.length / 32 + 1) * 32;
             
             assembly {
                 mstore(_metadata, _paddedLength)
