@@ -25,7 +25,8 @@ pragma solidity ^0.8.20;
  *            +-----------------------+
  */
 library JBXDelegateMetadataLib {
-
+event Test(uint);
+event Test(bytes4);
     /**
      * @notice Parse the metadata to find the metadata for a specific delegate
      *
@@ -36,7 +37,7 @@ library JBXDelegateMetadataLib {
      *
      * @return _targetMetadata The metadata for the delegate
      */
-    function getMetadata(bytes4 _id, bytes calldata _metadata) internal pure returns(bytes memory _targetMetadata) {
+    function getMetadata(bytes4 _id, bytes calldata _metadata) internal returns(bytes memory _targetMetadata) {
         // Either no metadata or empty one with only one selector (32+4+1)
         if(_metadata.length < 37) return '';
 
@@ -59,6 +60,7 @@ library JBXDelegateMetadataLib {
                 return _metadata[_currentOffset * 32 : uint256(uint8(_metadata[_i + 9])) * 32];
             }
         }
+        emit Test(69696969);
     }
 
     /**
@@ -82,6 +84,9 @@ library JBXDelegateMetadataLib {
         for(uint256 _i; _i < _ids.length; _i++) {
             _metadata = abi.encodePacked(_metadata, _ids[_i], bytes1(uint8(_offset)));
             _offset += _metadatas[_i].length / 32;
+
+            // Overflowing a bytes1?
+            require(_offset <= 2**8, 'JBXDelegateMetadataLib: metadata too long');
         }
         
         // Pad the array to a multiple of 32B
