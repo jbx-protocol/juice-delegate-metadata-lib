@@ -40,19 +40,20 @@ library JBXDelegateMetadataLib {
         // Either no metadata or empty one with only one selector (32+4+1)
         if(_metadata.length < 37) return '';
 
-        // Get the first data offset
-        uint8 _firstOffset = uint8(_metadata[32+4]);
+        // Get the first data offset - upcast to avoid overflow (same for other offset)
+        uint256 _firstOffset = uint8(_metadata[32+4]);
 
         // Parse the id's to find _id, stop when next offset == 0 or current = first offset
         for(uint256 _i = 32; _metadata[_i+4] != bytes1(0) && _i < _firstOffset * 32; _i += 5) {
+
             // _id found?
             if(bytes4(_metadata[_i:_i+4]) == _id) {
                 // Are we at the end of the ids/offset array (either at the start of data's or next offset is 0/in the padding)
                 if(_i + 5 == _firstOffset * 32 || _metadata[_i + 9] == 0)
-                    return _metadata[uint8(_metadata[_i + 4]) * 32 : _metadata.length];
+                    return _metadata[uint256(uint8(_metadata[_i + 4])) * 32 : _metadata.length];
 
                 // If not, only return until from this offset to the next offset
-                return _metadata[uint8(_metadata[_i + 4]) * 32 : uint8(_metadata[_i + 9]) * 32];
+                return _metadata[uint256(uint8(_metadata[_i + 4])) * 32 : uint256(uint8(_metadata[_i + 9])) * 32];
             }
         }
     }
