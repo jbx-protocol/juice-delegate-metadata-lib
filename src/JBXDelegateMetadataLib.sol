@@ -75,9 +75,12 @@ library JBXDelegateMetadataLib {
         // add a first empty 32B
         _metadata = abi.encodePacked(bytes32(0));
 
-        // first offset for the data is after the first reserved word and after the array, rounding up to 32 bytes words if not a multiple
-        uint256 _offset = _ids.length * 5 % 32 == 0 ? 1 + _ids.length * 5 / 32 : 1 + _ids.length * 5 / 32 + 1;
+        // first offset for the data is after the first reserved word... 
+        uint256 _offset = 1;
 
+        // ... and after the array, rounding up to 32 bytes words if not a multiple
+        _offset += ((_ids.length * 5) - 1) / 32 + 1;
+        
         // For each id, add it to the array with the next free offset, then increment the offset by the data length (rounded up)
         for(uint256 _i; _i < _ids.length; _i++) {
             _metadata = abi.encodePacked(_metadata, _ids[_i], bytes1(uint8(_offset)));
