@@ -6,8 +6,8 @@ pragma solidity ^0.8.20;
  *
  * @dev    Metadata are defined as:
  *         - 32B of reserved space for the protocol
- *         - an array of tuples (delegateId, offset), defining the offset of the metadata for each delegate.
- *           The offset fits 1 bytes, the ID 4 bytes. This array is padded to 32B.
+ *         - a lookup table 'delegateId':'offset', defining the offset of the metadata for each delegate.
+ *           The offset fits 1 bytes, the ID 4 bytes. This dictionary is padded to 32B.
  *         - the metadata for each delegate, padded to 32B each
  *
  *            +-----------------------+ offset: 0
@@ -16,7 +16,7 @@ pragma solidity ^0.8.20;
  *            | (delegate1 ID,offset1)|
  *            | (delegate2 ID,offset2)|
  *            | 0's padding           |
- *            +-----------------------+ offset: offset1 = 1 + number of words taken by the padded array
+ *            +-----------------------+ offset: offset1 = 1 + number of words taken by the padded table
  *            | delegate 1 metadata1  |
  *            | 0's padding           |
  *            +-----------------------+ offset: offset2 = offset1 + number of words taken by the metadata1
@@ -51,7 +51,7 @@ library JBXDelegateMetadataLib {
             // _id found?
             if(bytes4(_metadata[_i:_i+4]) == _id) {
 
-                // Are we at the end of the ids/offset array (either at the start of data's or next offset is 0/in the padding)
+                // Are we at the end of the lookup table (either at the start of data's or next offset is 0/in the padding)
                 if(_i + 9 >= _firstOffset * 32 || _metadata[_i + 9] == 0)
                     return _metadata[_currentOffset * 32 : _metadata.length];
 
@@ -72,16 +72,16 @@ library JBXDelegateMetadataLib {
      * @return _metadata       The packed metadata for the delegates
      */
     function createMetadata(bytes4[] calldata _ids, bytes[] calldata _metadatas) internal pure returns(bytes memory _metadata) {
-        // add a first empty 32B
+        // add a first empty 32B for the protocol reserved word
         _metadata = abi.encodePacked(bytes32(0));
 
         // first offset for the data is after the first reserved word... 
         uint256 _offset = 1;
 
-        // ... and after the array, rounding up to 32 bytes words if not a multiple
+        // ... and after the id/offset lookup table, rounding up to 32 bytes words if not a multiple
         _offset += ((_ids.length * 5) - 1) / 32 + 1;
         
-        // For each id, add it to the array with the next free offset, then increment the offset by the data length (rounded up)
+        // For each id, add it to the lookup table with the next free offset, then increment the offset by the data length (rounded up)
         for(uint256 _i; _i < _ids.length; _i++) {
             _metadata = abi.encodePacked(_metadata, _ids[_i], bytes1(uint8(_offset)));
             _offset += _metadatas[_i].length / 32;
@@ -90,7 +90,7 @@ library JBXDelegateMetadataLib {
             require(_offset <= 2**8, 'JBXDelegateMetadataLib: metadata too long');
         }
         
-        // Pad the array to a multiple of 32B
+        // Pad the table to a multiple of 32B
         uint256 _paddedLength = _metadata.length % 32 == 0 ?_metadata.length : (_metadata.length / 32 + 1) * 32;
         assembly {
             mstore(_metadata, _paddedLength)
