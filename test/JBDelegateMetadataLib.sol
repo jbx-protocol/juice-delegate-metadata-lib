@@ -3,13 +3,13 @@ pragma solidity ^0.8.20;
 
 import "forge-std/Test.sol";
 
-import "../src/JBDelegateMetadataLib.sol";
+import "../src/JBDelegateMetadataHelper.sol";
 
 contract JBDelegateMetadataLib_Test is Test {
-    ForTest_JBDelegateMetadataLib parser;
+    JBDelegateMetadataHelper parser;
 
     function setUp() external {
-        parser = new ForTest_JBDelegateMetadataLib();
+        parser = new JBDelegateMetadataHelper();
     }
 
     function test_parse() external {
@@ -97,26 +97,5 @@ contract JBDelegateMetadataLib_Test is Test {
 
         vm.expectRevert("JBXDelegateMetadataLib: metadata too long");
         parser.createMetadata(_ids, _metadatas);
-    }
-}
-
-/**
- * @dev Harness to deploy and test JBXDelegateMetadataLib
- */
-contract ForTest_JBDelegateMetadataLib {
-    function getMetadata(bytes4 _delegateId, bytes calldata _metadata)
-        external
-        pure
-        returns (bytes memory _targetMetadata)
-    {
-        return JBDelegateMetadataLib.getMetadata(_delegateId, _metadata);
-    }
-
-    function createMetadata(bytes4[] calldata _ids, bytes[] calldata _metadatas)
-        external
-        pure
-        returns (bytes memory _metadata)
-    {
-        return JBDelegateMetadataLib.createMetadata(_ids, _metadatas);
     }
 }
