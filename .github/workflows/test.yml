@@ -1,6 +1,6 @@
 name: test
 
-on: workflow_dispatch
+on: push
 
 env:
   FOUNDRY_PROFILE: ci
@@ -17,6 +17,14 @@ jobs:
         with:
           submodules: recursive
 
+      - uses: actions/cache@v2
+        with:
+          path: '**/node_modules'
+          key: ${{ runner.os }}-modules-${{ hashFiles('**/yarn.lock') }}
+  
+      - name: Install packages
+        run: yarn install
+          
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
         with:
