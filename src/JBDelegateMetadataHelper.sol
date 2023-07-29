@@ -110,7 +110,6 @@ contract JBDelegateMetadataHelper {
         }
     }
 
-event Test(uint);
     function addToMetadata(bytes4 _idToAdd, bytes calldata _dataToAdd, bytes calldata _originalMetadata) public returns (bytes memory _newMetadata) {
         // return JBDelegateMetadataLib.addToMetadata(_idToAdd, _dataToAdd, _originalMetadata);
 
@@ -138,15 +137,12 @@ event Test(uint);
 
                 // Check if the new 5B are still fitting in this word
                 if(_i + 5 > _firstOffset) {
-                    emit Test(0);
-                    _lastOffset++;
-
                     // Increment every offset by 1 (as the table now takes one more word)
-                    for (uint256 _j = RESERVED_SIZE; _originalMetadata[_j + ID_SIZE] != bytes1(0) && _j < _firstOffset * WORD_SIZE; _j += TOTAL_ID_SIZE) {
+                    for (uint256 _j = RESERVED_SIZE + ID_SIZE; _j < _lastOffsetIndex + 1; _j += TOTAL_ID_SIZE) {
                         _newMetadata[_j] = bytes1(uint8(_originalMetadata[_j]) + 1);
                     }
-                    emit Test(1);
 
+                    _lastOffset++;
                 }
 
                 break;
@@ -162,11 +158,9 @@ event Test(uint);
         assembly {
             mstore(_newMetadata, _paddedLength)
         }
-                    emit Test(2);
 
         // Add existing data at the end
         _newMetadata = abi.encodePacked(_newMetadata, _originalMetadata[_firstOffset * WORD_SIZE : _originalMetadata.length]);
-                    emit Test(3);
 
         // Pad as needed
         _paddedLength =
