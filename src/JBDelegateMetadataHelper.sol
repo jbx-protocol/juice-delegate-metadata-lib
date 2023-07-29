@@ -54,7 +54,7 @@ contract JBDelegateMetadataHelper {
      *
      * @return _targetMetadata The metadata for the delegate
      */
-    function getMetadata(bytes4 _id, bytes calldata _metadata) external pure returns (bytes memory _targetMetadata) {
+    function getMetadata(bytes4 _id, bytes calldata _metadata) public pure returns (bytes memory _targetMetadata) {
         return JBDelegateMetadataLib.getMetadata(_id, _metadata);
     }
 
@@ -69,7 +69,7 @@ contract JBDelegateMetadataHelper {
      * @return _metadata       The packed metadata for the delegates
      */
     function createMetadata(bytes4[] calldata _ids, bytes[] calldata _metadatas)
-        external
+        public
         pure
         returns (bytes memory _metadata)
     {
@@ -108,5 +108,9 @@ contract JBDelegateMetadataHelper {
                 mstore(_metadata, _paddedLength)
             }
         }
+    }
+
+    function addToMetadata(bytes4 _idToAdd, bytes calldata _dataToAdd, bytes calldata _originalMetadata) public pure returns (bytes memory _newMetadata) {
+        return JBDelegateMetadataLib.addToMetadata(_idToAdd, _dataToAdd, _originalMetadata);
     }
 }

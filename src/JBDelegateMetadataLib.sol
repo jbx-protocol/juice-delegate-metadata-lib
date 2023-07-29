@@ -84,8 +84,9 @@ library JBDelegateMetadataLib {
         // The last offset stored in the table
         uint256 _lastOffset;
 
-        // Copy the reserved word and the table
-        _newMetadata = _originalMetadata[0 : _firstOffset * WORD_SIZE];
+        uint256 _lastOffsetIndex;
+
+
 
         // Iterate to find the last entry of the table, _lastOffset - we start from the end as the first value encountered
         // will be the last offset
@@ -93,8 +94,12 @@ library JBDelegateMetadataLib {
             // If the byte is not 0, this is the last offset
             if (_originalMetadata[_i] != 0) {
                 _lastOffset = uint8(_originalMetadata[_i]);
+                _lastOffsetIndex = _i;
 
-                // Check if the new 5B are still fitting in this word (no data shift needed then) bool _shiftData
+                // Copy the reserved word and the table and remove the previous padding
+                _newMetadata = _originalMetadata[0 : _lastOffsetIndex + 1];
+
+                // Check if the new 5B are still fitting in this word
                 if(_i + 5 > _firstOffset) {
                     _lastOffset++;
 
@@ -103,13 +108,15 @@ library JBDelegateMetadataLib {
                         _newMetadata[_j] = bytes1(uint8(_originalMetadata[_j]) + 1);
                     }
                 }
+
+                break;
             }
         }
 
-        // Add the new entry after the last entry of the table (offset := lastOffset + 1)
-        _newMetadata = abi.encodePacked(_newMetadata, _idToAdd, bytes1(uint8(_lastOffset + 1)));
+        // Add the new entry after the last entry of the table, at _lastOffsetIndex
+        _newMetadata = abi.encodePacked(_newMetadata, _idToAdd, bytes1(uint8(_lastOffset)));
 
-        // Pad as needed
+        // Pad as neede
         uint256 _paddedLength =
             _newMetadata.length % WORD_SIZE == 0 ? _newMetadata.length : (_newMetadata.length / WORD_SIZE + 1) * WORD_SIZE;
         assembly {

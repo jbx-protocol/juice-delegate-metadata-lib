@@ -98,4 +98,23 @@ contract JBDelegateMetadataLib_Test is Test {
         vm.expectRevert("JBXDelegateMetadataLib: metadata too long");
         parser.createMetadata(_ids, _metadatas);
     }
+
+    function test_addToMetadata(uint256 _numberOfDelegates) external {
+        // Maximum 220 delegates with 1 word data (offset overflow if more)
+        _numberOfDelegates = bound(_numberOfDelegates, 1, 220);
+
+        _numberOfDelegates = 3;
+
+        bytes4[] memory _ids = new bytes4[](_numberOfDelegates);
+        bytes[] memory _metadatas = new bytes[](_numberOfDelegates);
+
+        for (uint256 _i; _i < _ids.length; _i++) {
+            _ids[_i] = bytes4(uint32(_i + 1 * 1000));
+            _metadatas[_i] = abi.encode(type(uint256).max - _i);
+        }
+
+        bytes memory _out = parser.createMetadata(_ids, _metadatas);
+
+        bytes memory _modified = parser.addToMetadata(bytes4(uint32(type(uint32).max)), abi.encode(123456), _out);
+    }
 }
