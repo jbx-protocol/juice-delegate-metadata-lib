@@ -110,7 +110,7 @@ contract JBDelegateMetadataHelper {
         }
     }
 
-    function addToMetadata(bytes4 _idToAdd, bytes calldata _dataToAdd, bytes calldata _originalMetadata) public returns (bytes memory _newMetadata) {
+    function addToMetadata(bytes4 _idToAdd, bytes calldata _dataToAdd, bytes calldata _originalMetadata) public pure returns (bytes memory _newMetadata) {
         // return JBDelegateMetadataLib.addToMetadata(_idToAdd, _dataToAdd, _originalMetadata);
 
         // Get the first data offset - upcast to avoid overflow (same for other offset)
@@ -126,7 +126,8 @@ contract JBDelegateMetadataHelper {
 
         // Iterate to find the last entry of the table, _lastOffset - we start from the end as the first value encountered
         // will be the last offset
-        for(uint256 _i = _firstOffset * WORD_SIZE - 1; _i > _lastWordOfTable * WORD_SIZE; _i -= 1) {
+        for(uint256 _i = _firstOffset * WORD_SIZE - 1; _i > _lastWordOfTable * WORD_SIZE - 1; _i -= 1) {
+
             // If the byte is not 0, this is the last offset
             if (_originalMetadata[_i] != 0) {
                 _lastOffset = uint8(_originalMetadata[_i]);
@@ -136,7 +137,7 @@ contract JBDelegateMetadataHelper {
                 _newMetadata = _originalMetadata[0 : _lastOffsetIndex + 1];
 
                 // Check if the new 5B are still fitting in this word
-                if(_i + 5 > _firstOffset) {
+                if(_i + 5 >= _firstOffset * WORD_SIZE) {
                     // Increment every offset by 1 (as the table now takes one more word)
                     for (uint256 _j = RESERVED_SIZE + ID_SIZE; _j < _lastOffsetIndex + 1; _j += TOTAL_ID_SIZE) {
                         _newMetadata[_j] = bytes1(uint8(_originalMetadata[_j]) + 1);
@@ -150,7 +151,7 @@ contract JBDelegateMetadataHelper {
         }
 
         // Add the new entry after the last entry of the table, at _lastOffsetIndex
-        _newMetadata = abi.encodePacked(_newMetadata, _idToAdd, bytes1(uint8(_lastOffset)));
+        _newMetadata = abi.encodePacked(_newMetadata, _idToAdd, bytes1(uint8(_lastOffset + 1)));
 
         // Pad as neede
         uint256 _paddedLength =

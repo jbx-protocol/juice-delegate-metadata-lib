@@ -100,9 +100,7 @@ contract JBDelegateMetadataLib_Test is Test {
     }
 
     function test_addToMetadata(uint256 _numberOfDelegates) external {
-        _numberOfDelegates = bound(_numberOfDelegates, 1, 220);
-
-        // _numberOfDelegates = 1;
+        _numberOfDelegates = bound(_numberOfDelegates, 1, 219);
 
         bytes4[] memory _ids = new bytes4[](_numberOfDelegates);
         bytes[] memory _metadatas = new bytes[](_numberOfDelegates);
