@@ -74,4 +74,91 @@ library JBDelegateMetadataLib {
         }
     }
 
+
+
+    /**
+     * @notice Add a delegate to an existing metadata
+     *
+     * @param _idToAdd         The id of the delegate to add
+     * @param _dataToAdd       The metadata of the delegate to add
+     * @param _originalMetadata The original metadata
+     *
+     * @return _newMetadata    The new metadata with the delegate added
+     */
+    function addToMetadata(bytes4 _idToAdd, bytes calldata _dataToAdd, bytes calldata _originalMetadata) public pure returns (bytes memory _newMetadata) {
+        // Get the first data offset - upcast to avoid overflow (same for other offset)...
+        uint256 _firstOffset = uint8(_originalMetadata[RESERVED_SIZE + ID_SIZE]);
+
+        // ...go back to the beginning of the previous word (ie the last word of the table, as it can be padded)
+        uint256 _lastWordOfTable = _firstOffset - 1;
+
+        // The last offset stored in the table and its index
+        uint256 _lastOffset;
+
+        uint256 _lastOffsetIndex;
+
+        // The number of words taken by the last data stored
+        uint256 _numberOfWordslastData;
+
+        // Iterate to find the last entry of the table, _lastOffset - we start from the end as the first value encountered
+        // will be the last offset
+        for(uint256 _i = _firstOffset * WORD_SIZE - 1; _i > _lastWordOfTable * WORD_SIZE - 1; _i -= 1) {
+
+            // If the byte is not 0, this is the last offset we're looking for
+            if (_originalMetadata[_i] != 0) {
+                _lastOffset = uint8(_originalMetadata[_i]);
+                _lastOffsetIndex = _i;
+
+                // No rounding as this should be padded to 32B
+                _numberOfWordslastData = (_originalMetadata.length - _lastOffset * WORD_SIZE) / WORD_SIZE;
+
+                // Copy the reserved word and the table and remove the previous padding
+                _newMetadata = _originalMetadata[0 : _lastOffsetIndex + 1];
+
+                // Check if the new 5B are still fitting in this word
+                if(_i + 5 >= _firstOffset * WORD_SIZE) {
+                    // Increment every offset by 1 (as the table now takes one more word)
+                    for (uint256 _j = RESERVED_SIZE + ID_SIZE; _j < _lastOffsetIndex + 1; _j += TOTAL_ID_SIZE) {
+                        _newMetadata[_j] = bytes1(uint8(_originalMetadata[_j]) + 1);
+                    }
+
+                    // Increment the last offset so the new offset will be properly set too
+                    _lastOffset++;
+                }
+
+                break;
+            }
+        }
+
+        // Add the new entry after the last entry of the table, the new offset is the last offset + the number of words taken by the last data
+        _newMetadata = abi.encodePacked(_newMetadata, _idToAdd, bytes1(uint8(_lastOffset + _numberOfWordslastData)));
+
+        // Pad as needed - inlined for gas saving
+        uint256 _paddedLength =
+            _newMetadata.length % WORD_SIZE == 0 ? _newMetadata.length : (_newMetadata.length / WORD_SIZE + 1) * WORD_SIZE;
+        assembly {
+            mstore(_newMetadata, _paddedLength)
+        }
+
+        // Add existing data at the end
+        _newMetadata = abi.encodePacked(_newMetadata, _originalMetadata[_firstOffset * WORD_SIZE : _originalMetadata.length]);
+
+        // Pad as needed
+        _paddedLength =
+            _newMetadata.length % WORD_SIZE == 0 ? _newMetadata.length : (_newMetadata.length / WORD_SIZE + 1) * WORD_SIZE;
+        assembly {
+            mstore(_newMetadata, _paddedLength)
+        }
+
+        // Append new data at the end
+        _newMetadata = abi.encodePacked(_newMetadata, _dataToAdd);
+
+        // Pad again again as needed
+        _paddedLength =
+            _newMetadata.length % WORD_SIZE == 0 ? _newMetadata.length : (_newMetadata.length / WORD_SIZE + 1) * WORD_SIZE;
+
+        assembly {
+            mstore(_newMetadata, _paddedLength)
+        }
+    }
 }

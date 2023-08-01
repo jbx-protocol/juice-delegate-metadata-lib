@@ -83,6 +83,27 @@ contract JBDelegateMetadataLib_Test is Test {
         }
     }
 
+    function test_createAndParse_mixed(uint256 _numberOfDelegates) external {
+        _numberOfDelegates = bound(_numberOfDelegates, 1, 15);
+
+        bytes4[] memory _ids = new bytes4[](_numberOfDelegates);
+        bytes[] memory _metadatas = new bytes[](_numberOfDelegates);
+
+        for (uint256 _i; _i < _ids.length; _i++) {
+            _ids[_i] = bytes4(uint32(_i + 1 * 1000));
+            _metadatas[_i] = abi.encode(69 << _i * 20);
+        }
+
+        bytes memory _out = parser.createMetadata(_ids, _metadatas);
+
+        for (uint256 _i; _i < _ids.length; _i++) {
+            uint256 _data = abi.decode(parser.getMetadata(_ids[_i], _out), (uint256));
+
+            assertEq(_data, 69 << _i * 20);
+        }
+
+    }
+
     function test_createRevertIfOffsetTooBig(uint256 _numberOfDelegates) external {
         // Max 1000 for evm memory limit
         _numberOfDelegates = bound(_numberOfDelegates, 221, 1000);
