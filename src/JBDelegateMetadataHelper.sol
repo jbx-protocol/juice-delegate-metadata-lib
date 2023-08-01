@@ -124,6 +124,9 @@ contract JBDelegateMetadataHelper {
 
         uint256 _lastOffsetIndex;
 
+        // The number of words taken by the last data stored
+        uint256 _numberOfWordslastData;
+
         // Iterate to find the last entry of the table, _lastOffset - we start from the end as the first value encountered
         // will be the last offset
         for(uint256 _i = _firstOffset * WORD_SIZE - 1; _i > _lastWordOfTable * WORD_SIZE - 1; _i -= 1) {
@@ -132,6 +135,9 @@ contract JBDelegateMetadataHelper {
             if (_originalMetadata[_i] != 0) {
                 _lastOffset = uint8(_originalMetadata[_i]);
                 _lastOffsetIndex = _i;
+
+                // No rounding as this should be padded to 32B
+                _numberOfWordslastData = (_originalMetadata.length - _lastOffset * WORD_SIZE) / WORD_SIZE;
 
                 // Copy the reserved word and the table and remove the previous padding
                 _newMetadata = _originalMetadata[0 : _lastOffsetIndex + 1];
@@ -151,7 +157,9 @@ contract JBDelegateMetadataHelper {
         }
 
         // Add the new entry after the last entry of the table, at _lastOffsetIndex
-        _newMetadata = abi.encodePacked(_newMetadata, _idToAdd, bytes1(uint8(_lastOffset + 1)));
+
+        // last offset + (length - lastoffsetIndex)
+        _newMetadata = abi.encodePacked(_newMetadata, _idToAdd, bytes1(uint8(_lastOffset + _numberOfWordslastData)));
 
         // Pad as neede
         uint256 _paddedLength =

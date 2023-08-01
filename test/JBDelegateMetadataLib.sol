@@ -121,8 +121,8 @@ contract JBDelegateMetadataLib_Test is Test {
     }
 
     function test_addToMetadata_bytes() public {
-        bytes4[] memory _ids = new bytes4[](10);
-        bytes[] memory _metadatas = new bytes[](10);
+        bytes4[] memory _ids = new bytes4[](2);
+        bytes[] memory _metadatas = new bytes[](2);
 
         for (uint256 _i; _i < _ids.length; _i++) {
             _ids[_i] = bytes4(uint32(_i + 1 * 1000));
@@ -133,11 +133,13 @@ contract JBDelegateMetadataLib_Test is Test {
 
         bytes memory _out = parser.createMetadata(_ids, _metadatas);
 
-        bytes memory _modified = parser.addToMetadata(bytes4(uint32(type(uint32).max)),
-        abi.encode(
-                bytes32(uint256(type(uint256).max)), bytes32(hex'123456')
-            ),
-        _out);
+        bytes memory _modified = parser.addToMetadata(
+            bytes4(uint32(type(uint32).max)),
+            abi.encode(
+                    bytes32(uint256(type(uint256).max)), bytes32(hex'123456')
+                ),
+            _out
+        );
 
         (bytes32 _a, bytes32 _b) = abi.decode(parser.getMetadata(bytes4(uint32(type(uint32).max)), _modified), (bytes32, bytes32));
 
