@@ -6,13 +6,11 @@ import "forge-std/Test.sol";
 import "../src/JBDelegateMetadataHelper.sol";
 
 contract Dumper {
-    function dump(bytes calldata _metadata) public pure returns (bytes memory) {
+    function dump(bytes calldata _metadata) public pure returns (bytes32 _out) {
         assembly {
             //_out := shr(248, mload(add(_metadata.offset, add(32, 4))))
-            let v := calldataload(1)
-            mstore(0, 32)
-            mstore(32, v)
-            return(0, 64)
+            _out := and(calldataload(add(_metadata.offset, 5)), 0xFF) // 4b select + 32 + 4
+
         }
     }
 }

@@ -125,7 +125,7 @@ contract JBDelegateMetadataHelper {
             }
 
             // Get the first data offset
-            let _firstOffset := shr(248, mload(add(_metadata.offset, add(_RESERVED_SIZE, ID_SIZE))))
+            let _firstOffset := and(calldataload(add(_metadata.offset, 5)), 0xFF)
 
             // Parse the id's to find _id, stop when next offset == 0 or current = first offset
             for
@@ -134,36 +134,36 @@ contract JBDelegateMetadataHelper {
             // and(lt(_i, mul(_firstOffset, WORD_SIZE)), not(iszero(and(mload(add(_metadata.offset, add(_i, ID_SIZE))), 0xFF))))
             { _i := add(_i, _TOTAL_ID_SIZE) } {
 
-                let _currentOffset := shr(248, mload(add(_metadata.offset, add(_i, ID_SIZE))))
+                let _currentOffset := and( calldataload(add(_metadata.offset, add(_i, ID_SIZE))), 0xFF)
 
+// todo: fix infra
+                // _id found?
+                if eq( and(shr(216, mload(add(_metadata.offset, _i))), 0xFFFFFFFF), _id) {
+                    // Are we at the end of the lookup table (either at the start of data's or next offset is 0/in the padding)
+                    // If not, only return until from this offset to the begining of the next offset
 
-                // // _id found?
-                // if eq( and(shr(216, mload(add(_metadata.offset, _i))), 0xFFFFFFFF), _id) {
-                //     // Are we at the end of the lookup table (either at the start of data's or next offset is 0/in the padding)
-                //     // If not, only return until from this offset to the begining of the next offset
-
-                //     let _end
+                    let _end
                     
-                //     // Compute the end of the data (start of next one or end of the calldata)
-                //     switch or(
-                //         gt(add(_i, _NEXT_DELEGATE_OFFSET), mul(_firstOffset, WORD_SIZE)),
-                //         iszero(mload(add(_metadata.offset, add(_i, _NEXT_DELEGATE_OFFSET))))
-                //     )
-                //     case 1 { _end := _metadata.length }
-                //     default { _end := mul(mload(add(_metadata.offset, add(_i, _NEXT_DELEGATE_OFFSET))), WORD_SIZE)
-                //     }
+                    // Compute the end of the data (start of next one or end of the calldata)
+                    switch or(
+                        gt(add(_i, _NEXT_DELEGATE_OFFSET), mul(_firstOffset, WORD_SIZE)),
+                        iszero(mload(add(_metadata.offset, add(_i, _NEXT_DELEGATE_OFFSET))))
+                    )
+                    case 1 { _end := _metadata.length }
+                    default { _end := mul(mload(add(_metadata.offset, add(_i, _NEXT_DELEGATE_OFFSET))), WORD_SIZE)
+                    }
 
-                //     // Store the data length
-                //     _targetMetadata := add(_metadata.offset, mul(_currentOffset, WORD_SIZE))
+                    // Store the data length
+                    _targetMetadata := add(_metadata.offset, mul(_currentOffset, WORD_SIZE))
 
-                //     // store the data in memory (might be multiple words)
-                //     for {let j := 0} lt(j, sub(_end, mul(_currentOffset, WORD_SIZE))) {j := add(j, _WORD_SIZE)} {
-                //         mstore(j, mload(add(_metadata.offset, add(_currentOffset, j))))
-                //     }
+                    // store the data in memory (might be multiple words)
+                    for {let j := 0} lt(j, sub(_end, mul(_currentOffset, WORD_SIZE))) {j := add(j, _WORD_SIZE)} {
+                        mstore(j, mload(add(_metadata.offset, add(_currentOffset, j))))
+                    }
 
-                //     // Return the data and its length
-                //     return(0, sub(_end, mul(_currentOffset, WORD_SIZE)))
-                // }   
+                    // Return the data and its length
+                    return(0, sub(_end, mul(_currentOffset, WORD_SIZE)))
+                }   
             }
         }
     }
