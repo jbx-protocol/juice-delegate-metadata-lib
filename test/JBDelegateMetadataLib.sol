@@ -251,4 +251,26 @@ contract JBDelegateMetadataLib_Test is Test {
             assertEq(_data, _i * 4);
         }
     }
+
+    function test_differentSizeIdAndMetadataArray_reverts(uint256 _numberOfDelegates, uint256 _numberOfMetadatas) public {
+        _numberOfDelegates = bound(_numberOfDelegates, 1, 100);
+        _numberOfMetadatas = bound(_numberOfMetadatas, 1, 100);
+
+        vm.assume(_numberOfDelegates != _numberOfMetadatas);
+
+        bytes4[] memory _ids = new bytes4[](_numberOfDelegates);
+        bytes[] memory _metadatas = new bytes[](_numberOfMetadatas);
+
+        for (uint256 _i; _i < _ids.length; _i++) {
+            _ids[_i] = bytes4(uint32(_i + 1 * 1000));
+        }
+
+        for (uint256 _i; _i < _metadatas.length; _i++) {
+            _metadatas[_i] = abi.encode(_i * 4);
+        }
+
+        // Below should revert
+        vm.expectRevert();
+        parser.createMetadata(_ids, _metadatas);
+    }
 }

@@ -59,6 +59,8 @@ contract JBDelegateMetadataHelper {
         pure
         returns (bytes memory _metadata)
     {
+        require(_ids.length == _metadatas.length, "JBXDelegateMetadataLib: metadatas and ids are not the same length");
+
         // add a first empty 32B for the protocol reserved word
         _metadata = abi.encodePacked(bytes32(0));
 
