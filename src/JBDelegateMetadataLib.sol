@@ -45,7 +45,7 @@ library JBDelegateMetadataLib {
         uint256 _firstOffset = uint8(_metadata[RESERVED_SIZE + ID_SIZE]);
 
         // Parse the id's to find _id, stop when next offset == 0 or current = first offset
-        for (uint256 _i = RESERVED_SIZE; _metadata[_i + ID_SIZE] != bytes1(0) && _i < _firstOffset * WORD_SIZE; _i += TOTAL_ID_SIZE) {
+        for (uint256 _i = RESERVED_SIZE; _metadata[_i + ID_SIZE] != bytes1(0) && _i < _firstOffset * WORD_SIZE;) {
             uint256 _currentOffset = uint256(uint8(_metadata[_i + ID_SIZE]));
 
             // _id found?
@@ -57,6 +57,9 @@ library JBDelegateMetadataLib {
                     : uint256(uint8(_metadata[_i + NEXT_DELEGATE_OFFSET])) * WORD_SIZE;
 
                 return _metadata[_currentOffset * WORD_SIZE:_end];
+            }
+            unchecked {
+                _i += TOTAL_ID_SIZE;
             }
         }
     }
@@ -87,7 +90,7 @@ library JBDelegateMetadataLib {
 
         // Iterate to find the last entry of the table, _lastOffset - we start from the end as the first value encountered
         // will be the last offset
-        for(uint256 _i = _firstOffset * WORD_SIZE - 1; _i > _lastWordOfTable * WORD_SIZE - 1; _i -= 1) {
+        for(uint256 _i = _firstOffset * WORD_SIZE - 1; _i > _lastWordOfTable * WORD_SIZE - 1;) {
 
             // If the byte is not 0, this is the last offset we're looking for
             if (_originalMetadata[_i] != 0) {
@@ -112,6 +115,10 @@ library JBDelegateMetadataLib {
                 }
 
                 break;
+            }
+
+            unchecked {
+                _i -= 1;
             }
         }
 
