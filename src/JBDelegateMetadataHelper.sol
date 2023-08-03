@@ -119,52 +119,69 @@ contract JBDelegateMetadataHelper {
         uint256 _NEXT_DELEGATE_OFFSET = NEXT_DELEGATE_OFFSET;
 
         assembly {
+
             // Either no metadata or empty one with only one selector (32+4+1)
             if lt(_metadata.length, _MIN_METADATA_LENGTH) {
                 return(0, 0)
             }
 
-            // Get the first data offset
-            let _firstOffset := and(calldataload(add(_metadata.offset, 5)), 0xFF)
+            // Freemem alloc
+            _targetMetadata := mload(0x40)
+
+            // Get the first data offset - todo: hardcode
+            let _firstOffset := and(calldataload(add(_metadata.offset, _TOTAL_ID_SIZE)), 0xFF)
 
             // Parse the id's to find _id, stop when next offset == 0 or current = first offset
             for
-            { let _i := _RESERVED_SIZE }
-            lt(_i, mul(_firstOffset, WORD_SIZE))//, not(iszero(and(mload(add(_metadata.offset, add(_i, ID_SIZE))), 0xFF))))
-            // and(lt(_i, mul(_firstOffset, WORD_SIZE)), not(iszero(and(mload(add(_metadata.offset, add(_i, ID_SIZE))), 0xFF))))
+            { let _i := _TOTAL_ID_SIZE } // start at _TOTAL_ID_SIZE as we mask the *last* byte
+            and(
+                lt(_i, mul(_firstOffset, WORD_SIZE)), 
+                not(iszero(and(calldataload(add(_metadata.offset, add(_i, _TOTAL_ID_SIZE))), 0xFF)))
+            )
             { _i := add(_i, _TOTAL_ID_SIZE) } {
 
-                let _currentOffset := and( calldataload(add(_metadata.offset, add(_i, ID_SIZE))), 0xFF)
+                let _currentEntry := calldataload(add(_metadata.offset, _i))
 
-// todo: fix infra
+                let _currentOffset := and(_currentEntry, 0xFF)
+                let _currentId := and(shr(8, _currentEntry), 0xFFFFFFFF)
+
                 // _id found?
-                if eq( and(shr(216, mload(add(_metadata.offset, _i))), 0xFFFFFFFF), _id) {
+                if eq(_currentId, shr(224, _id)) {
                     // Are we at the end of the lookup table (either at the start of data's or next offset is 0/in the padding)
                     // If not, only return until from this offset to the begining of the next offset
 
                     let _end
                     
-                    // Compute the end of the data (start of next one or end of the calldata)
-                    switch or(
-                        gt(add(_i, _NEXT_DELEGATE_OFFSET), mul(_firstOffset, WORD_SIZE)),
-                        iszero(mload(add(_metadata.offset, add(_i, _NEXT_DELEGATE_OFFSET))))
+                    // // Compute the end of the data (start of next one or end of the calldata)
+                    // switch or(
+                    //     gt(add(_i, _NEXT_DELEGATE_OFFSET), mul(_firstOffset, WORD_SIZE)),
+                    //     iszero(mload(add(_metadata.offset, add(_i, _NEXT_DELEGATE_OFFSET))))
+                    // )
+                    // case 1 { _end := _metadata.length }
+                    // default { _end := mul(mload(add(_metadata.offset, add(_i, _NEXT_DELEGATE_OFFSET))), WORD_SIZE)
+                    // }
+
+                    // // Store the data length
+                    // _targetMetadata := add(_metadata.offset, mul(_currentOffset, WORD_SIZE))
+
+                    // // store the data in memory (might be multiple words)
+                    // for {let j := 0} lt(j, sub(_end, mul(_currentOffset, WORD_SIZE))) {j := add(j, _WORD_SIZE)} {
+                    //     mstore(j, mload(add(_metadata.offset, add(_currentOffset, j))))
+                    // }
+
+/**test */
+                    mstore(_targetMetadata, 0x20)
+                    mstore(
+                        add(_targetMetadata, 0x20), 
+                        _currentId
                     )
-                    case 1 { _end := _metadata.length }
-                    default { _end := mul(mload(add(_metadata.offset, add(_i, _NEXT_DELEGATE_OFFSET))), WORD_SIZE)
-                    }
 
-                    // Store the data length
-                    _targetMetadata := add(_metadata.offset, mul(_currentOffset, WORD_SIZE))
-
-                    // store the data in memory (might be multiple words)
-                    for {let j := 0} lt(j, sub(_end, mul(_currentOffset, WORD_SIZE))) {j := add(j, _WORD_SIZE)} {
-                        mstore(j, mload(add(_metadata.offset, add(_currentOffset, j))))
-                    }
-
-                    // Return the data and its length
-                    return(0, sub(_end, mul(_currentOffset, WORD_SIZE)))
+                    break
                 }   
             }
+
+            // Free mem pointer update
+            mstore(0x40, add(_targetMetadata, 0x40))
         }
     }
 

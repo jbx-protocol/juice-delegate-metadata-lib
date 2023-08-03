@@ -6,12 +6,31 @@ import "forge-std/Test.sol";
 import "../src/JBDelegateMetadataHelper.sol";
 
 contract Dumper {
-    function dump(bytes calldata _metadata) public pure returns (bytes32 _out) {
+    function dump(bytes calldata _metadata) public pure returns (bytes memory _out) {
         assembly {
-            //_out := shr(248, mload(add(_metadata.offset, add(32, 4))))
-            _out := and(calldataload(add(_metadata.offset, 5)), 0xFF) // 4b select + 32 + 4
+            // _out := and(calldataload(add(_metadata.offset, 5)), 0xFF)
+            // _out:= and(calldataload(add(_metadata.offset, add(1, ID_SIZE))), 0xFF) //1 6 11 (+4)
 
+            _out := mload(0x40)
+
+            mstore(_out, 0x60)
+            mstore(
+                add(_out, 0x20),
+                and(calldataload(add(_metadata.offset, 5)), 0xFFFFFF00)
+            )
+            mstore(
+                add(_out, 0x40), 
+                and(calldataload(add(_metadata.offset, 10)), 0xFFFFFF00)
+            )
+            mstore(
+                add(_out, 0x60), 
+                and(calldataload(add(_metadata.offset, 15)), 0xFFFFFF00)
+            )
+
+            mstore(0x40, add(_out, 0x80))
         }
+
+        return _out;
     }
 }
 
@@ -128,8 +147,8 @@ contract JBDelegateMetadataLib_Test is Test {
 
         parser.getMetadataYul(_ids[1], _out);
 
-        Dumper dmp = new Dumper();
-        dmp.dump(_out);
+        // Dumper dmp = new Dumper();
+        //dmp.dump(_out);
 
         // for (uint256 _i; _i < _ids.length; _i++) {
         //     uint256 _data = abi.decode(parser.getMetadata(_ids[_i], _out), (uint256));
