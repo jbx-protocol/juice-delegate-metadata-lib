@@ -30,6 +30,13 @@ import './JBDelegateMetadataConstants.sol';
  *         This contract is intended to expose the library functions as a helper for frontends.
  */
 contract JBDelegateMetadataHelper {
+
+    //*********************************************************************//
+    // --------------------------- custom errors ------------------------- //
+    //*********************************************************************//
+    error LENGTH_MISMATCH();
+    error METADATA_TOO_LONG();
+
     /**
      * @notice Parse the metadata to find the metadata for a specific delegate
      *
@@ -59,7 +66,7 @@ contract JBDelegateMetadataHelper {
         pure
         returns (bytes memory _metadata)
     {
-        require(_ids.length == _metadatas.length, "JBXDelegateMetadataLib: metadatas and ids are not the same length");
+        if (_ids.length != _metadatas.length) revert LENGTH_MISMATCH();
 
         // add a first empty 32B for the protocol reserved word
         _metadata = abi.encodePacked(bytes32(0));
@@ -71,12 +78,15 @@ contract JBDelegateMetadataHelper {
         _offset += ((_ids.length * TOTAL_ID_SIZE) - 1) / WORD_SIZE + 1;
 
         // For each id, add it to the lookup table with the next free offset, then increment the offset by the data length (rounded up)
-        for (uint256 _i; _i < _ids.length; _i++) {
+        for (uint256 _i; _i < _ids.length;) {
             _metadata = abi.encodePacked(_metadata, _ids[_i], bytes1(uint8(_offset)));
             _offset += _metadatas[_i].length / WORD_SIZE;
 
             // Overflowing a bytes1?
-            require(_offset <= 2 ** 8, "JBXDelegateMetadataLib: metadata too long");
+            if (_offset > 2 ** 8) revert METADATA_TOO_LONG();
+            unchecked {
+                ++ _i;
+            }
         }
 
         // Pad the table to a multiple of 32B

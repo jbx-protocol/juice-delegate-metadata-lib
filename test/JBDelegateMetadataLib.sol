@@ -142,7 +142,7 @@ contract JBDelegateMetadataLib_Test is Test {
             _metadatas[_i] = abi.encode(type(uint256).max - _i);
         }
 
-        vm.expectRevert("JBXDelegateMetadataLib: metadata too long");
+        vm.expectRevert(abi.encodeWithSignature("METADATA_TOO_LONG()"));
         parser.createMetadata(_ids, _metadatas);
     }
 
@@ -270,7 +270,7 @@ contract JBDelegateMetadataLib_Test is Test {
         }
 
         // Below should revert
-        vm.expectRevert();
+        vm.expectRevert(abi.encodeWithSignature("LENGTH_MISMATCH()"));
         parser.createMetadata(_ids, _metadatas);
     }
 }
