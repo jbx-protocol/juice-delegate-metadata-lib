@@ -111,34 +111,24 @@ contract JBDelegateMetadataHelper {
 
     function getMetadataYul(bytes4 _id, bytes calldata _metadata) public pure returns (bytes memory _targetMetadata) {
 
-        uint256 _MIN_METADATA_LENGTH = MIN_METADATA_LENGTH;
-        uint256 _RESERVED_SIZE = RESERVED_SIZE;
-        uint256 _ID_SIZE = ID_SIZE;
-        uint256 _WORD_SIZE = WORD_SIZE;
-        uint256 _TOTAL_ID_SIZE = TOTAL_ID_SIZE;
-        uint256 _NEXT_DELEGATE_OFFSET = NEXT_DELEGATE_OFFSET;
-
         assembly {
 
             // Either no metadata or empty one with only one selector (32+4+1)
-            if lt(_metadata.length, _MIN_METADATA_LENGTH) {
+            if lt(_metadata.length, MIN_METADATA_LENGTH) {
                 return(0, 0)
             }
 
-            // Freemem alloc
-            _targetMetadata := mload(0x40)
-
             // Get the first data offset - todo: hardcode
-            let _firstOffset := and(calldataload(add(_metadata.offset, _TOTAL_ID_SIZE)), 0xFF)
+            let _firstOffset := and(calldataload(add(_metadata.offset, TOTAL_ID_SIZE)), 0xFF)
 
             // Parse the id's to find _id, stop when next offset == 0 or current = first offset
             for
-            { let _i := _TOTAL_ID_SIZE } // start at _TOTAL_ID_SIZE as we mask the *last* byte
+            { let _i := TOTAL_ID_SIZE } // start at TOTAL_ID_SIZE as we mask the *last* byte
             and(
                 lt(_i, mul(_firstOffset, WORD_SIZE)), 
-                not(iszero(and(calldataload(add(_metadata.offset, add(_i, _TOTAL_ID_SIZE))), 0xFF)))
+                not(iszero(and(calldataload(add(_metadata.offset, add(_i, TOTAL_ID_SIZE))), 0xFF)))
             )
-            { _i := add(_i, _TOTAL_ID_SIZE) } {
+            { _i := add(_i, TOTAL_ID_SIZE) } {
 
                 let _currentEntry := calldataload(add(_metadata.offset, _i))
 
@@ -152,36 +142,44 @@ contract JBDelegateMetadataHelper {
 
                     let _end
                     
-                    // // Compute the end of the data (start of next one or end of the calldata)
-                    // switch or(
-                    //     gt(add(_i, _NEXT_DELEGATE_OFFSET), mul(_firstOffset, WORD_SIZE)),
-                    //     iszero(mload(add(_metadata.offset, add(_i, _NEXT_DELEGATE_OFFSET))))
-                    // )
-                    // case 1 { _end := _metadata.length }
-                    // default { _end := mul(mload(add(_metadata.offset, add(_i, _NEXT_DELEGATE_OFFSET))), WORD_SIZE)
-                    // }
+                    // Compute the end of the data (start of next one or end of the calldata)
+                    switch or(
+                        gt(add(_i, NEXT_DELEGATE_OFFSET), mul(_firstOffset, WORD_SIZE)),
+                        iszero(calldataload(add(_metadata.offset, add(_i, NEXT_DELEGATE_OFFSET))))
+                    )
+                    case 1 { _end := _metadata.length }
+                    default { _end := mul(calldataload(add(_metadata.offset, add(_i, NEXT_DELEGATE_OFFSET))), WORD_SIZE)
+                    }
 
-                    // // Store the data length
-                    // _targetMetadata := add(_metadata.offset, mul(_currentOffset, WORD_SIZE))
+                    // Freemem alloc
+                    _targetMetadata := mload(0x40)
+
+                    // Store the data length
+                    // mstore(
+                    //     _targetMetadata, 
+                    //     sub(_end, mul(_currentOffset, WORD_SIZE))
+                    // )
 
                     // // store the data in memory (might be multiple words)
                     // for {let j := 0} lt(j, sub(_end, mul(_currentOffset, WORD_SIZE))) {j := add(j, _WORD_SIZE)} {
-                    //     mstore(j, mload(add(_metadata.offset, add(_currentOffset, j))))
+                    //     mstore(j, calldataload(add(_metadata.offset, add(_currentOffset, j))))
                     // }
 
 /**test */
                     mstore(_targetMetadata, 0x20)
                     mstore(
                         add(_targetMetadata, 0x20), 
-                        _currentId
+                        _end
                     )
+
+                    // Free mem pointer update
+                    mstore(0x40, add(_targetMetadata, 0x40))
 
                     break
                 }   
             }
 
-            // Free mem pointer update
-            mstore(0x40, add(_targetMetadata, 0x40))
+
         }
     }
 
