@@ -2,6 +2,7 @@
 pragma solidity ^0.8.20;
 
 import {JBDelegateMetadataLib} from "./JBDelegateMetadataLib.sol";
+import './JBDelegateMetadataConstants.sol';
 
 /**
  * @notice Contract to create Juicebox delegate metadata
@@ -29,20 +30,12 @@ import {JBDelegateMetadataLib} from "./JBDelegateMetadataLib.sol";
  *         This contract is intended to expose the library functions as a helper for frontends.
  */
 contract JBDelegateMetadataHelper {
-    // The various sizes used in bytes.
-    uint256 constant ID_SIZE = 4;
-    uint256 constant ID_OFFSET_SIZE = 1;
-    uint256 constant WORD_SIZE = 32;
 
-    // The size that a delegate takes in the lookup table (Identifier + Offset).
-    uint256 constant TOTAL_ID_SIZE = ID_SIZE + ID_OFFSET_SIZE;
-
-    // The amount of bytes to go forward to get to the offset of the next delegate (aka. the end of the offset of the current delegate).
-    uint256 constant NEXT_DELEGATE_OFFSET = TOTAL_ID_SIZE + ID_SIZE;
-
-    // 1 word (32B) is reserved for the protocol .
-    uint256 constant RESERVED_SIZE = 1 * WORD_SIZE;
-    uint256 constant MIN_METADATA_LENGTH = RESERVED_SIZE + ID_SIZE + ID_OFFSET_SIZE;
+    //*********************************************************************//
+    // --------------------------- custom errors ------------------------- //
+    //*********************************************************************//
+    error LENGTH_MISMATCH();
+    error METADATA_TOO_LONG();
 
     /**
      * @notice Parse the metadata to find the metadata for a specific delegate
@@ -54,7 +47,7 @@ contract JBDelegateMetadataHelper {
      *
      * @return _targetMetadata The metadata for the delegate
      */
-    function getMetadata(bytes4 _id, bytes calldata _metadata) external pure returns (bytes memory _targetMetadata) {
+    function getMetadata(bytes4 _id, bytes calldata _metadata) public pure returns (bytes memory _targetMetadata) {
         return JBDelegateMetadataLib.getMetadata(_id, _metadata);
     }
 
@@ -69,10 +62,12 @@ contract JBDelegateMetadataHelper {
      * @return _metadata       The packed metadata for the delegates
      */
     function createMetadata(bytes4[] calldata _ids, bytes[] calldata _metadatas)
-        external
+        public
         pure
         returns (bytes memory _metadata)
     {
+        if (_ids.length != _metadatas.length) revert LENGTH_MISMATCH();
+
         // add a first empty 32B for the protocol reserved word
         _metadata = abi.encodePacked(bytes32(0));
 
@@ -83,12 +78,15 @@ contract JBDelegateMetadataHelper {
         _offset += ((_ids.length * TOTAL_ID_SIZE) - 1) / WORD_SIZE + 1;
 
         // For each id, add it to the lookup table with the next free offset, then increment the offset by the data length (rounded up)
-        for (uint256 _i; _i < _ids.length; _i++) {
+        for (uint256 _i; _i < _ids.length;) {
             _metadata = abi.encodePacked(_metadata, _ids[_i], bytes1(uint8(_offset)));
             _offset += _metadatas[_i].length / WORD_SIZE;
 
             // Overflowing a bytes1?
-            require(_offset <= 2 ** 8, "JBXDelegateMetadataLib: metadata too long");
+            if (_offset > 2 ** 8) revert METADATA_TOO_LONG();
+            unchecked {
+                ++ _i;
+            }
         }
 
         // Pad the table to a multiple of 32B
@@ -108,5 +106,18 @@ contract JBDelegateMetadataHelper {
                 mstore(_metadata, _paddedLength)
             }
         }
+    }
+
+    /**
+     * @notice Add a delegate to an existing metadata
+     *
+     * @param _idToAdd         The id of the delegate to add
+     * @param _dataToAdd       The metadata of the delegate to add
+     * @param _originalMetadata The original metadata
+     *
+     * @return _newMetadata    The new metadata with the delegate added
+     */
+    function addToMetadata(bytes4 _idToAdd, bytes calldata _dataToAdd, bytes calldata _originalMetadata) public pure returns (bytes memory _newMetadata) {
+        return JBDelegateMetadataLib.addToMetadata(_idToAdd, _dataToAdd, _originalMetadata);
     }
 }

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+import './JBDelegateMetadataConstants.sol';
+
 /**
  * @notice Library to parse and create delegate metadata
  *
@@ -25,21 +27,6 @@ pragma solidity ^0.8.20;
  *            +-----------------------+
  */
 library JBDelegateMetadataLib {
-    // The various sizes used in bytes.
-    uint256 constant ID_SIZE = 4;
-    uint256 constant ID_OFFSET_SIZE = 1;
-    uint256 constant WORD_SIZE = 32;
-
-    // The size that a delegate takes in the lookup table (Identifier + Offset).
-    uint256 constant TOTAL_ID_SIZE = ID_SIZE + ID_OFFSET_SIZE;
-
-    // The amount of bytes to go forward to get to the offset of the next delegate (aka. the end of the offset of the current delegate).
-    uint256 constant NEXT_DELEGATE_OFFSET = TOTAL_ID_SIZE + ID_SIZE;
-
-    // 1 word (32B) is reserved for the protocol .
-    uint256 constant RESERVED_SIZE = 1 * WORD_SIZE;
-    uint256 constant MIN_METADATA_LENGTH = RESERVED_SIZE + ID_SIZE + ID_OFFSET_SIZE;
-
     /**
      * @notice Parse the metadata to find the metadata for a specific delegate
      *
@@ -58,7 +45,7 @@ library JBDelegateMetadataLib {
         uint256 _firstOffset = uint8(_metadata[RESERVED_SIZE + ID_SIZE]);
 
         // Parse the id's to find _id, stop when next offset == 0 or current = first offset
-        for (uint256 _i = RESERVED_SIZE; _metadata[_i + ID_SIZE] != bytes1(0) && _i < _firstOffset * WORD_SIZE; _i += TOTAL_ID_SIZE) {
+        for (uint256 _i = RESERVED_SIZE; _metadata[_i + ID_SIZE] != bytes1(0) && _i < _firstOffset * WORD_SIZE;) {
             uint256 _currentOffset = uint256(uint8(_metadata[_i + ID_SIZE]));
 
             // _id found?
@@ -71,6 +58,99 @@ library JBDelegateMetadataLib {
 
                 return _metadata[_currentOffset * WORD_SIZE:_end];
             }
+            unchecked {
+                _i += TOTAL_ID_SIZE;
+            }
+        }
+    }
+
+    /**
+     * @notice Add a delegate to an existing metadata
+     *
+     * @param _idToAdd         The id of the delegate to add
+     * @param _dataToAdd       The metadata of the delegate to add
+     * @param _originalMetadata The original metadata
+     *
+     * @return _newMetadata    The new metadata with the delegate added
+     */
+    function addToMetadata(bytes4 _idToAdd, bytes calldata _dataToAdd, bytes calldata _originalMetadata) public pure returns (bytes memory _newMetadata) {
+        // Get the first data offset - upcast to avoid overflow (same for other offset)...
+        uint256 _firstOffset = uint8(_originalMetadata[RESERVED_SIZE + ID_SIZE]);
+
+        // ...go back to the beginning of the previous word (ie the last word of the table, as it can be padded)
+        uint256 _lastWordOfTable = _firstOffset - 1;
+
+        // The last offset stored in the table and its index
+        uint256 _lastOffset;
+
+        uint256 _lastOffsetIndex;
+
+        // The number of words taken by the last data stored
+        uint256 _numberOfWordslastData;
+
+        // Iterate to find the last entry of the table, _lastOffset - we start from the end as the first value encountered
+        // will be the last offset
+        for(uint256 _i = _firstOffset * WORD_SIZE - 1; _i > _lastWordOfTable * WORD_SIZE - 1;) {
+
+            // If the byte is not 0, this is the last offset we're looking for
+            if (_originalMetadata[_i] != 0) {
+                _lastOffset = uint8(_originalMetadata[_i]);
+                _lastOffsetIndex = _i;
+
+                // No rounding as this should be padded to 32B
+                _numberOfWordslastData = (_originalMetadata.length - _lastOffset * WORD_SIZE) / WORD_SIZE;
+
+                // Copy the reserved word and the table and remove the previous padding
+                _newMetadata = _originalMetadata[0 : _lastOffsetIndex + 1];
+
+                // Check if the new entry is still fitting in this word
+                if(_i + TOTAL_ID_SIZE >= _firstOffset * WORD_SIZE) {
+                    // Increment every offset by 1 (as the table now takes one more word)
+                    for (uint256 _j = RESERVED_SIZE + ID_SIZE; _j < _lastOffsetIndex + 1; _j += TOTAL_ID_SIZE) {
+                        _newMetadata[_j] = bytes1(uint8(_originalMetadata[_j]) + 1);
+                    }
+
+                    // Increment the last offset so the new offset will be properly set too
+                    _lastOffset++;
+                }
+
+                break;
+            }
+
+            unchecked {
+                _i -= 1;
+            }
+        }
+
+        // Add the new entry after the last entry of the table, the new offset is the last offset + the number of words taken by the last data
+        _newMetadata = abi.encodePacked(_newMetadata, _idToAdd, bytes1(uint8(_lastOffset + _numberOfWordslastData)));
+
+        // Pad as needed - inlined for gas saving
+        uint256 _paddedLength =
+            _newMetadata.length % WORD_SIZE == 0 ? _newMetadata.length : (_newMetadata.length / WORD_SIZE + 1) * WORD_SIZE;
+        assembly {
+            mstore(_newMetadata, _paddedLength)
+        }
+
+        // Add existing data at the end
+        _newMetadata = abi.encodePacked(_newMetadata, _originalMetadata[_firstOffset * WORD_SIZE : _originalMetadata.length]);
+
+        // Pad as needed
+        _paddedLength =
+            _newMetadata.length % WORD_SIZE == 0 ? _newMetadata.length : (_newMetadata.length / WORD_SIZE + 1) * WORD_SIZE;
+        assembly {
+            mstore(_newMetadata, _paddedLength)
+        }
+
+        // Append new data at the end
+        _newMetadata = abi.encodePacked(_newMetadata, _dataToAdd);
+
+        // Pad again again as needed
+        _paddedLength =
+            _newMetadata.length % WORD_SIZE == 0 ? _newMetadata.length : (_newMetadata.length / WORD_SIZE + 1) * WORD_SIZE;
+
+        assembly {
+            mstore(_newMetadata, _paddedLength)
         }
     }
 }
