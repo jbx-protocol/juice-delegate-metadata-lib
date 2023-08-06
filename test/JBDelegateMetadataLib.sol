@@ -5,13 +5,55 @@ import "forge-std/Test.sol";
 
 import "../src/JBDelegateMetadataHelper.sol";
 
+contract Dumper {
+    function dump(bytes calldata _metadata) public pure returns (bytes memory _out) {
+        assembly {
+            // _out := and(calldataload(add(_metadata.offset, 5)), 0xFF)
+            // _out:= and(calldataload(add(_metadata.offset, add(1, ID_SIZE))), 0xFF) //1 6 11 (+4)
+
+            _out := mload(0x40)
+
+            mstore(_out, 0x60)
+            mstore(
+                add(_out, 0x20),
+                and(calldataload(add(_metadata.offset, 5)), 0xFFFFFF00)
+            )
+            mstore(
+                add(_out, 0x40), 
+                and(calldataload(add(_metadata.offset, 10)), 0xFFFFFF00)
+            )
+            mstore(
+                add(_out, 0x60), 
+                and(calldataload(add(_metadata.offset, 15)), 0xFFFFFF00)
+            )
+
+            mstore(0x40, add(_out, 0x80))
+        }
+
+        return _out;
+    }
+}
+
+/**
+ * @notice Test the JBDelegateMetadata library and helper contract
+ *
+ * @dev    This are a mixed of unit and integration tests.
+ */
 contract JBDelegateMetadataLib_Test is Test {
     JBDelegateMetadataHelper parser;
 
+    /**
+     * @notice Deploy the helper contract
+     *
+     * @dev    Helper inherit the lib and add createMetadata
+     */
     function setUp() external {
         parser = new JBDelegateMetadataHelper();
     }
 
+    /**
+     * @notice Test the parsing of arbitrary metadata
+     */
     function test_parse() external {
         bytes4 _id1 = bytes4(0x11111111);
         bytes4 _id2 = bytes4(0x33333333);
@@ -38,6 +80,9 @@ contract JBDelegateMetadataLib_Test is Test {
         assertEq(parser.getMetadata(_id2, _metadata), _data2);
     }
 
+    /**
+     * @notice Test creating and parsing bytes only metadata
+     */
     function test_createAndParse_bytes() external {
         bytes4[] memory _ids = new bytes4[](10);
         bytes[] memory _metadatas = new bytes[](10);
@@ -62,6 +107,9 @@ contract JBDelegateMetadataLib_Test is Test {
         }
     }
 
+    /**
+     * @notice Test creating and parsing uint only metadata
+     */
     function test_createAndParse_uint(uint256 _numberOfDelegates) external {
         // Maximum 220 delegates with 1 word data (offset overflow if more)
         _numberOfDelegates = bound(_numberOfDelegates, 1, 220);
@@ -83,6 +131,60 @@ contract JBDelegateMetadataLib_Test is Test {
         }
     }
 
+    function test_createAndParse_uint_Yul() external {
+        // Maximum 220 delegates with 1 word data (offset overflow if more)
+        uint256 _numberOfDelegates = 3;
+
+        bytes4[] memory _ids = new bytes4[](_numberOfDelegates);
+        bytes[] memory _metadatas = new bytes[](_numberOfDelegates);
+
+        for (uint256 _i; _i < _ids.length; _i++) {
+            _ids[_i] = bytes4(uint32(_i + 1 * 1000));
+            _metadatas[_i] = abi.encode(type(uint256).max - _i);
+        }
+
+        bytes memory _out = parser.createMetadata(_ids, _metadatas);
+
+        parser.getMetadataYul(_ids[1], _out);
+
+        // Dumper dmp = new Dumper();
+        //dmp.dump(_out);
+
+        // for (uint256 _i; _i < _ids.length; _i++) {
+        //     uint256 _data = abi.decode(parser.getMetadata(_ids[_i], _out), (uint256));
+
+        //     assertEq(_data, type(uint256).max - _i);
+        // }
+    }
+
+
+    /**
+     * @notice Test creating and parsing metadata of various length
+     */
+    function test_createAndParse_mixed(uint256 _numberOfDelegates) external {
+        _numberOfDelegates = bound(_numberOfDelegates, 1, 15);
+
+        bytes4[] memory _ids = new bytes4[](_numberOfDelegates);
+        bytes[] memory _metadatas = new bytes[](_numberOfDelegates);
+
+        for (uint256 _i; _i < _ids.length; _i++) {
+            _ids[_i] = bytes4(uint32(_i + 1 * 1000));
+            _metadatas[_i] = abi.encode(69 << _i * 20);
+        }
+
+        bytes memory _out = parser.createMetadata(_ids, _metadatas);
+
+        for (uint256 _i; _i < _ids.length; _i++) {
+            uint256 _data = abi.decode(parser.getMetadata(_ids[_i], _out), (uint256));
+
+            assertEq(_data, 69 << _i * 20);
+        }
+
+    }
+
+    /**
+     * @notice Test if createMetadata reverts when the offset would overflow
+     */
     function test_createRevertIfOffsetTooBig(uint256 _numberOfDelegates) external {
         // Max 1000 for evm memory limit
         _numberOfDelegates = bound(_numberOfDelegates, 221, 1000);
@@ -97,5 +199,111 @@ contract JBDelegateMetadataLib_Test is Test {
 
         vm.expectRevert("JBXDelegateMetadataLib: metadata too long");
         parser.createMetadata(_ids, _metadatas);
+    }
+
+    /**
+     * @notice Test adding uint to an uint metadata
+     */
+    function test_addToMetadata_uint(uint256 _numberOfDelegates) external {
+        _numberOfDelegates = bound(_numberOfDelegates, 1, 219);
+
+        bytes4[] memory _ids = new bytes4[](_numberOfDelegates);
+        bytes[] memory _metadatas = new bytes[](_numberOfDelegates);
+
+        for (uint256 _i; _i < _ids.length; _i++) {
+            _ids[_i] = bytes4(uint32(_i + 1 * 1000));
+            _metadatas[_i] = abi.encode(type(uint256).max - _i);
+        }
+
+        bytes memory _out = parser.createMetadata(_ids, _metadatas);
+
+        bytes memory _modified = parser.addToMetadata(bytes4(uint32(type(uint32).max)), abi.encode(123456), _out);
+
+        assertEq(
+            abi.encode(123456),
+            parser.getMetadata(bytes4(uint32(type(uint32).max)), _modified)
+        );
+
+        for (uint256 _i; _i < _ids.length; _i++) {
+            uint256 _data = abi.decode(parser.getMetadata(_ids[_i], _modified), (uint256));
+
+            assertEq(_data, type(uint256).max - _i);
+        }
+    }
+
+    /**
+     * @notice Test adding bytes to a bytes metadata
+     */
+    function test_addToMetadata_bytes() public {
+        bytes4[] memory _ids = new bytes4[](2);
+        bytes[] memory _metadatas = new bytes[](2);
+
+        for (uint256 _i; _i < _ids.length; _i++) {
+            _ids[_i] = bytes4(uint32(_i + 1 * 1000));
+            _metadatas[_i] = abi.encode(
+                bytes1(uint8(_i + 1)), uint32(69), bytes2(uint16(_i + 69)), bytes32(uint256(type(uint256).max))
+            );
+        }
+
+        bytes memory _out = parser.createMetadata(_ids, _metadatas);
+
+        bytes memory _modified = parser.addToMetadata(
+            bytes4(uint32(type(uint32).max)),
+            abi.encode(
+                    bytes32(uint256(type(uint256).max)), bytes32(hex'123456')
+                ),
+            _out
+        );
+
+        (bytes32 _a, bytes32 _b) = abi.decode(parser.getMetadata(bytes4(uint32(type(uint32).max)), _modified), (bytes32, bytes32));
+
+        assertEq(bytes32(uint256(type(uint256).max)), _a);
+
+        assertEq(bytes32(hex'123456'), _b);
+
+        for (uint256 _i; _i < _ids.length; _i++) {
+            (bytes1 _c, uint32 _d, bytes2 _e, bytes32 _f) =
+                abi.decode(parser.getMetadata(_ids[_i], _modified), (bytes1, uint32, bytes2, bytes32));
+
+            assertEq(uint8(_c), _i + 1);
+            assertEq(_d, uint32(69));
+            assertEq(uint16(_e), _i + 69);
+            assertEq(_f, bytes32(uint256(type(uint256).max)));
+        }
+    }
+
+    /**
+     * @notice Test adding bytes to an uint metadata
+     */
+    function test_addToMetadata_mixed(uint256 _numberOfDelegates) external {
+        _numberOfDelegates = bound(_numberOfDelegates, 1, 100);
+
+        bytes4[] memory _ids = new bytes4[](_numberOfDelegates);
+        bytes[] memory _metadatas = new bytes[](_numberOfDelegates);
+
+        for (uint256 _i; _i < _ids.length; _i++) {
+            _ids[_i] = bytes4(uint32(_i + 1 * 1000));
+            _metadatas[_i] = abi.encode(_i * 4);
+        }
+
+        bytes memory _out = parser.createMetadata(_ids, _metadatas);
+
+        bytes memory _modified = parser.addToMetadata(
+            bytes4(uint32(type(uint32).max)), 
+            abi.encode(uint32(69), bytes32(uint256(type(uint256).max))),
+            _out
+        );
+
+        (uint32 _a, bytes32 _b) = abi.decode(parser.getMetadata(bytes4(uint32(type(uint32).max)), _modified), (uint32, bytes32));
+
+        assertEq(_a, uint32(69));
+
+        assertEq(_b, bytes32(uint256(type(uint256).max)));
+
+        for (uint256 _i; _i < _ids.length; _i++) {
+            uint256 _data = abi.decode(parser.getMetadata(_ids[_i], _modified), (uint256));
+
+            assertEq(_data, _i * 4);
+        }
     }
 }

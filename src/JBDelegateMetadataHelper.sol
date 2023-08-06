@@ -2,6 +2,7 @@
 pragma solidity ^0.8.20;
 
 import {JBDelegateMetadataLib} from "./JBDelegateMetadataLib.sol";
+import './JBDelegateMetadataConstants.sol';
 
 /**
  * @notice Contract to create Juicebox delegate metadata
@@ -29,21 +30,6 @@ import {JBDelegateMetadataLib} from "./JBDelegateMetadataLib.sol";
  *         This contract is intended to expose the library functions as a helper for frontends.
  */
 contract JBDelegateMetadataHelper {
-    // The various sizes used in bytes.
-    uint256 constant ID_SIZE = 4;
-    uint256 constant ID_OFFSET_SIZE = 1;
-    uint256 constant WORD_SIZE = 32;
-
-    // The size that a delegate takes in the lookup table (Identifier + Offset).
-    uint256 constant TOTAL_ID_SIZE = ID_SIZE + ID_OFFSET_SIZE;
-
-    // The amount of bytes to go forward to get to the offset of the next delegate (aka. the end of the offset of the current delegate).
-    uint256 constant NEXT_DELEGATE_OFFSET = TOTAL_ID_SIZE + ID_SIZE;
-
-    // 1 word (32B) is reserved for the protocol .
-    uint256 constant RESERVED_SIZE = 1 * WORD_SIZE;
-    uint256 constant MIN_METADATA_LENGTH = RESERVED_SIZE + ID_SIZE + ID_OFFSET_SIZE;
-
     /**
      * @notice Parse the metadata to find the metadata for a specific delegate
      *
@@ -54,7 +40,7 @@ contract JBDelegateMetadataHelper {
      *
      * @return _targetMetadata The metadata for the delegate
      */
-    function getMetadata(bytes4 _id, bytes calldata _metadata) external pure returns (bytes memory _targetMetadata) {
+    function getMetadata(bytes4 _id, bytes calldata _metadata) public pure returns (bytes memory _targetMetadata) {
         return JBDelegateMetadataLib.getMetadata(_id, _metadata);
     }
 
@@ -69,7 +55,7 @@ contract JBDelegateMetadataHelper {
      * @return _metadata       The packed metadata for the delegates
      */
     function createMetadata(bytes4[] calldata _ids, bytes[] calldata _metadatas)
-        external
+        public
         pure
         returns (bytes memory _metadata)
     {
@@ -109,4 +95,92 @@ contract JBDelegateMetadataHelper {
             }
         }
     }
+
+    /**
+     * @notice Add a delegate to an existing metadata
+     *
+     * @param _idToAdd         The id of the delegate to add
+     * @param _dataToAdd       The metadata of the delegate to add
+     * @param _originalMetadata The original metadata
+     *
+     * @return _newMetadata    The new metadata with the delegate added
+     */
+    function addToMetadata(bytes4 _idToAdd, bytes calldata _dataToAdd, bytes calldata _originalMetadata) public pure returns (bytes memory _newMetadata) {
+        return JBDelegateMetadataLib.addToMetadata(_idToAdd, _dataToAdd, _originalMetadata);
+    }
+
+    function getMetadataYul(bytes4 _id, bytes calldata _metadata) public pure returns (bytes memory _targetMetadata) {
+
+        assembly {
+
+            // Either no metadata or empty one with only one selector (32+4+1)
+            if lt(_metadata.length, MIN_METADATA_LENGTH) {
+                return(0, 0)
+            }
+
+            // Get the first data offset - todo: hardcode
+            let _firstOffset := and(calldataload(add(_metadata.offset, TOTAL_ID_SIZE)), 0xFF)
+
+            // Parse the id's to find _id, stop when next offset == 0 or current = first offset
+            for
+            { let _i := TOTAL_ID_SIZE } // start at TOTAL_ID_SIZE as we mask the *last* byte
+            and(
+                lt(_i, mul(_firstOffset, WORD_SIZE)), 
+                not(iszero(and(calldataload(add(_metadata.offset, add(_i, TOTAL_ID_SIZE))), 0xFF)))
+            )
+            { _i := add(_i, TOTAL_ID_SIZE) } {
+
+                let _currentEntry := calldataload(add(_metadata.offset, _i))
+
+                let _currentOffset := and(_currentEntry, 0xFF)
+                let _currentId := and(shr(8, _currentEntry), 0xFFFFFFFF)
+
+                // _id found?
+                if eq(_currentId, shr(224, _id)) {
+                    // Are we at the end of the lookup table (either at the start of data's or next offset is 0/in the padding)
+                    // If not, only return until from this offset to the begining of the next offset
+
+                    let _end
+                    
+                    // Compute the end of the data (start of next one or end of the calldata)
+                    switch or(
+                        gt(add(_i, NEXT_DELEGATE_OFFSET), mul(_firstOffset, WORD_SIZE)),
+                        iszero(calldataload(add(_metadata.offset, add(_i, NEXT_DELEGATE_OFFSET))))
+                    )
+                    case 1 { _end := _metadata.length }
+                    default { _end := mul(calldataload(add(_metadata.offset, add(_i, NEXT_DELEGATE_OFFSET))), WORD_SIZE)
+                    }
+
+                    // Freemem alloc
+                    _targetMetadata := mload(0x40)
+
+                    // Store the data length
+                    // mstore(
+                    //     _targetMetadata, 
+                    //     sub(_end, mul(_currentOffset, WORD_SIZE))
+                    // )
+
+                    // // store the data in memory (might be multiple words)
+                    // for {let j := 0} lt(j, sub(_end, mul(_currentOffset, WORD_SIZE))) {j := add(j, _WORD_SIZE)} {
+                    //     mstore(j, calldataload(add(_metadata.offset, add(_currentOffset, j))))
+                    // }
+
+/**test */
+                    mstore(_targetMetadata, 0x20)
+                    mstore(
+                        add(_targetMetadata, 0x20), 
+                        _end
+                    )
+
+                    // Free mem pointer update
+                    mstore(0x40, add(_targetMetadata, 0x40))
+
+                    break
+                }   
+            }
+
+
+        }
+    }
+
 }
