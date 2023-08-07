@@ -30,16 +30,17 @@ library JBDelegateMetadataLib {
     /**
      * @notice Parse the metadata to find the metadata for a specific delegate
      *
-     * @dev    Returns an empty bytes if no metadata is found
+     * @dev    Returns false and an empty bytes if no metadata is found
      *
      * @param  _id             The delegate id to find
      * @param  _metadata       The metadata to parse
      *
+     * @return _found          Whether the metadata was found
      * @return _targetMetadata The metadata for the delegate
      */
-    function getMetadata(bytes4 _id, bytes calldata _metadata) internal pure returns (bytes memory _targetMetadata) {
+    function getMetadata(bytes4 _id, bytes calldata _metadata) internal pure returns (bool _found, bytes memory _targetMetadata) {
         // Either no metadata or empty one with only one selector (32+4+1)
-        if (_metadata.length < MIN_METADATA_LENGTH) return "";
+        if (_metadata.length < MIN_METADATA_LENGTH) return (false, "");
 
         // Get the first data offset - upcast to avoid overflow (same for other offset)
         uint256 _firstOffset = uint8(_metadata[RESERVED_SIZE + ID_SIZE]);
@@ -56,7 +57,7 @@ library JBDelegateMetadataLib {
                     ? _metadata.length
                     : uint256(uint8(_metadata[_i + NEXT_DELEGATE_OFFSET])) * WORD_SIZE;
 
-                return _metadata[_currentOffset * WORD_SIZE:_end];
+                return (true, _metadata[_currentOffset * WORD_SIZE:_end]);
             }
             unchecked {
                 _i += TOTAL_ID_SIZE;

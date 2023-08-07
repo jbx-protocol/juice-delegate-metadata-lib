@@ -40,14 +40,15 @@ contract JBDelegateMetadataHelper {
     /**
      * @notice Parse the metadata to find the metadata for a specific delegate
      *
-     * @dev    Returns an empty bytes if no metadata is found
+     * @dev    Returns false and an empty bytes if no metadata is found
      *
      * @param  _id             The delegate id to find
      * @param  _metadata       The metadata to parse
      *
+     * @return _found          Whether the metadata was found
      * @return _targetMetadata The metadata for the delegate
      */
-    function getMetadata(bytes4 _id, bytes calldata _metadata) public pure returns (bytes memory _targetMetadata) {
+    function getMetadata(bytes4 _id, bytes calldata _metadata) public pure returns (bool _found, bytes memory _targetMetadata) {
         return JBDelegateMetadataLib.getMetadata(_id, _metadata);
     }
 
