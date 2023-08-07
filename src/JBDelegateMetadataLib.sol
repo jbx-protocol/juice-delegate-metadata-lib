@@ -40,7 +40,7 @@ library JBDelegateMetadataLib {
      */
     function getMetadata(bytes4 _id, bytes calldata _metadata) internal pure returns (bool _found, bytes memory _targetMetadata) {
         // Either no metadata or empty one with only one selector (32+4+1)
-        if (_metadata.length < MIN_METADATA_LENGTH) return (false, "");
+        if (_metadata.length <= MIN_METADATA_LENGTH) return (false, "");
 
         // Get the first data offset - upcast to avoid overflow (same for other offset)
         uint256 _firstOffset = uint8(_metadata[RESERVED_SIZE + ID_SIZE]);
